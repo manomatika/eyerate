@@ -33,8 +33,8 @@ python scripts/sync_version.py      # Sync VERSION file → applug.json
 
 ### Manifest Files
 
-- `applug.json` — Plugin ID (`eyerate`), `name` (`"EyeRate"`), `display_name` (`"EyeRate"`), `version`, entry point, permissions, and the settings UI schema (drives the data provider selector in Matika's settings page). Permissions: Admin=FULL, User=FULL for `/admin/securities`.
-- `eyerate_menu.json` — Menu metadata (schema v1.0). Menu type: `Application`. Label key: `menu_eyerate` → `"EyeRate"`. Items: Securities link (`/admin/securities`, roles: Admin).
+- `applug.json` — Plugin ID (`eyerate`), `name` (`"EyeRate"`), `display_name` (`"EyeRate"`), `version`, entry point, permissions, and the settings UI schema (drives the data provider selector in Matika's settings page). Permissions: Admin=FULL, User=FULL for `/eyerate/securities`.
+- `eyerate_menu.json` — Menu metadata (schema v1.0). Menu type: `Application`. Label key: `menu_eyerate` → `"EyeRate"`. Items: Securities link (`/eyerate/securities`, roles: Admin).
 
 ### Plugin Wiring (`plugin.py`)
 
@@ -63,7 +63,7 @@ The active endpoint is resolved at runtime from the Matika system setting `finan
 
 ### Routes (`routes.py`)
 
-FastAPI router registered at `/admin/securities`. All routes use `get_db`, `check_page_permission`, and `validate_csrf` (form routes) from Matika's security layer.
+FastAPI router registered at `/eyerate/securities`. All routes use `get_db`, `check_page_permission`, and `validate_csrf` (form routes) from Matika's security layer.
 
 ### Test Setup (`tests/conftest.py`)
 

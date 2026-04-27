@@ -7,7 +7,7 @@
     "matika_version": "0.0.2",
     "permissions": [
         {
-            "page_path": "/admin/securities",
+            "page_path": "/eyerate/securities",
             "page_type": "Maintenance",
             "roles": {
                 "Admin": "FULL",

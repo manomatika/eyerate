@@ -55,7 +55,7 @@ class SecuritiesManager extends MaintenanceActivityManager {
 
         try {
             if (!silent) this.showMessage(`Refreshing price for ${symbol}...`);
-            const resp = await fetch(`/admin/securities/lookup?symbol=${encodeURIComponent(symbol)}`);
+            const resp = await fetch(`/eyerate/securities/lookup?symbol=${encodeURIComponent(symbol)}`);
             if (resp.ok) {
                 const data = await resp.json();
                 const priceInput = document.getElementById('field-current_price') as HTMLInputElement;
@@ -79,14 +79,14 @@ class SecuritiesManager extends MaintenanceActivityManager {
             this.showMessage(`Adding ${results.length} securities...`);
             const symbols = results.map(r => r.symbol);
             try {
-                const resp = await fetch('/admin/securities/bulk_create', {
+                const resp = await fetch('/eyerate/securities/bulk_create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ symbols })
                 });
 
                 if (resp.ok) {
-                    window.location.href = `/admin/securities?select=${symbols[0]}`;
+                    window.location.href = `/eyerate/securities?select=${symbols[0]}`;
                 } else {
                     const data = await resp.json();
                     this.showMessage(data.detail || "Bulk add failed", true);
@@ -125,7 +125,7 @@ class SecuritiesManager extends MaintenanceActivityManager {
             this.showMessage(`Deleting ${results.length} securities...`);
             const symbols = results.map(r => r.symbol);
             try {
-                const resp = await fetch('/admin/securities/bulk_delete', {
+                const resp = await fetch('/eyerate/securities/bulk_delete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ symbols })
@@ -146,7 +146,7 @@ class SecuritiesManager extends MaintenanceActivityManager {
     private async fetchMetadata(symbol: string) {
         try {
             this.showMessage(`Fetching metadata for ${symbol}...`);
-            const resp = await fetch(`/admin/securities/lookup?symbol=${encodeURIComponent(symbol)}`);
+            const resp = await fetch(`/eyerate/securities/lookup?symbol=${encodeURIComponent(symbol)}`);
             if (!resp.ok) {
                 if (resp.status === 404) {
                     throw new Error(`Financial Security details for '${symbol}' not found.`);
@@ -196,9 +196,9 @@ class SecuritiesManager extends MaintenanceActivityManager {
         this.checkDirty();
     }
 
-    protected override getCreateUrl() { return "/admin/securities/create"; }
-    protected override getUpdateUrl(id: string) { return `/admin/securities/update/${id}`; }
-    protected override getDeleteUrl(id: string) { return `/admin/securities/delete/${id}`; }
+    protected override getCreateUrl() { return "/eyerate/securities/create"; }
+    protected override getUpdateUrl(id: string) { return `/eyerate/securities/update/${id}`; }
+    protected override getDeleteUrl(id: string) { return `/eyerate/securities/delete/${id}`; }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

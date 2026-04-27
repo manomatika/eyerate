@@ -142,11 +142,11 @@ export class LookupDialog {
     }
 
     private async performFetch(q: string): Promise<LookupResult[]> {
-        let resp = await fetch(`/admin/securities/search?q=${encodeURIComponent(q)}`);
+        let resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q)}`);
         let data = await resp.json();
         
         if (data.length === 0 && !q.endsWith('*')) {
-            resp = await fetch(`/admin/securities/search?q=${encodeURIComponent(q + '*')}`);
+            resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q + '*')}`);
             data = await resp.json();
         }
         return data;

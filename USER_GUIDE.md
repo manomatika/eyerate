@@ -33,7 +33,7 @@ EyeRate supports multiple market data sources. You can switch between them in th
 
 ## 4. Troubleshooting
 - **No Data Found:** Verify that the ticker symbol is correct and that your internet connection is active.
-- **Permission Denied:** Ensure your Matika user has been assigned a role with "FULL" access to the `/admin/securities` path.
+- **Permission Denied:** Ensure your Matika user has been assigned a role with "FULL" access to the `/eyerate/securities` path.
 - **Yields Not Updating:** Some providers may lag in reporting yields for specific ETFs or Mutual Funds. Switching providers may resolve this.
 
 ## 5. Developer Support
