@@ -10,8 +10,7 @@
             "page_path": "/admin/securities",
             "page_type": "Maintenance",
             "roles": {
-                "Admin": "FULL",
-                "User": "FULL"
+                "Admin": "FULL"
             }
         }
     ],
