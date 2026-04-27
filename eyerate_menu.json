@@ -1,11 +1,18 @@
-[
-    {
-        "parent_menu_id": "activities",
-        "items": [
-            {
-                "label_key": "item_securities",
-                "href": "/admin/securities"
-            }
-        ]
-    }
-]
+{
+    "schema_version": "1.0",
+    "menus": [
+        {
+            "id": "eyerate-main",
+            "label_key": "menu_eyerate",
+            "type": "Application",
+            "items": [
+                {
+                    "type": "Link",
+                    "label_key": "item_securities",
+                    "href": "/admin/securities",
+                    "roles": ["Admin"]
+                }
+            ]
+        }
+    ]
+}

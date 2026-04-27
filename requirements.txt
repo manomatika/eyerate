@@ -1,0 +1,18 @@
+# EyeRate AppLug — additional runtime dependencies
+#
+# These packages extend the Matika host environment.
+# Matika's own dependencies (fastapi, sqlalchemy, httpx, etc.) are NOT
+# listed here — they are provided by the host and installed via
+# Matika's requirements.txt.
+#
+# Install:
+#   uv pip install -r requirements.txt   (from within the Matika venv)
+#
+# Or let Matika's requirements.txt include this file in CI/CD:
+#   uv pip install -r plugins/eyerate/requirements.txt
+
+# Yahoo Finance data provider
+yfinance==1.3.0
+
+# HTTP scraping (Yahoo search endpoint)
+curl_cffi==0.15.0

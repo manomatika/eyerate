@@ -1,4 +1,37 @@
-**EyeRate** | Version: **0.0.1** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **v0.0.2** | Copyright (c) 2026 Patrick James Tallman
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # EyeRate - Financial Security Plugin for Matika
 

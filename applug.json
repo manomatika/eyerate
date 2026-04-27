@@ -1,27 +1,17 @@
 {
     "id": "eyerate",
-    "version": "0.0.1",
-    "name": "EyeRate Financial Securities",
+    "version": "0.0.2_dev",
+    "name": "EyeRate",
     "description": "Financial security maintenance and yield tracking plugin.",
     "entry_point": "eyerate.plugin.EyeRatePlugin",
     "matika_version_min": "0.0.1",
-    "menu_items": [
-        {
-            "label_key": "item_securities",
-            "href": "/admin/securities",
-            "icon": "trending-up",
-            "roles": [
-                "Admin"
-            ]
-        }
-    ],
     "permissions": [
         {
             "page_path": "/admin/securities",
             "page_type": "Maintenance",
             "roles": {
                 "Admin": "FULL",
-                "User": "NONE"
+                "User": "FULL"
             }
         }
     ],
