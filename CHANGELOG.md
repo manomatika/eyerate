@@ -6,6 +6,13 @@ All notable changes to EyeRate are documented here.
 
 ---
 
+## [Unreleased / 0.0.2_dev]
+
+### Added
+- *(nothing yet)*
+
+---
+
 ## [0.0.1] — 2026-04-27
 
 ### First Formal Release
