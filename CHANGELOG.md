@@ -1,4 +1,4 @@
-**EyeRate** | Version: **0.0.1** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **0.0.2** | Copyright (c) 2026 Patrick James Tallman
 
 # Changelog
 
@@ -6,27 +6,25 @@ All notable changes to EyeRate are documented here.
 
 ---
 
-## [Unreleased / 0.0.2_dev]
+## [Unreleased / 0.0.3_dev]
 
 ### Added
 - *(nothing yet)*
 
 ---
 
-## [0.0.1] — 2026-04-27
+## [0.0.2] — 2026-04-27
 
-### First Formal Release
+### Compatibility Contract
+
+First version under Matika's formal compatibility contract.
 
 #### Added
 - `matika_version` field in `applug.json` declaring compatibility with
-  Matika 0.0.2. Replaces the informal `matika_version_min` field.
-  EyeRate 0.0.1 is built and tested against Matika 0.0.2 exactly.
-- `VERSION` file established at 0.0.1 as the baseline for EyeRate's
-  own version tracking, independent of Matika's version.
-- `tests/conftest.py` updated to patch `matika_version` in the copied
-  applug.json at test-setup time, so tests stay green across Matika
-  development versions without changing the declared compatibility target.
+  Matika 0.0.2 exactly. Replaces the informal `matika_version_min` field.
+- `tests/conftest.py` patches `matika_version` in the copied applug.json
+  at test-setup time, keeping tests green across Matika development versions
+  without changing the declared compatibility target in applug.json.
 
 #### Changed
-- `applug.json` `version` field set to `0.0.1` (aligned with VERSION file).
 - Removed informal `matika_version_min` field (superseded by `matika_version`).

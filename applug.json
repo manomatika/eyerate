@@ -1,6 +1,6 @@
 {
     "id": "eyerate",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "name": "EyeRate",
     "description": "Financial security maintenance and yield tracking plugin.",
     "entry_point": "eyerate.plugin.EyeRatePlugin",
