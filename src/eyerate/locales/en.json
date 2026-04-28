@@ -1,6 +1,9 @@
 {
     "menu_eyerate": "EyeRate",
     "item_securities": "Securities",
+    "item_eyerate_admin": "Administration",
+    "heading_eyerate_admin": "EyeRate Administration",
+    "msg_eyerate_admin_coming_soon": "Administration features coming soon.",
     "label_include_securities": "Include My Securities",
     "msg_securities_coming_soon": "Securities Maintenance Coming Soon",
     "heading_securities": "Securities",
