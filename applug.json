@@ -13,6 +13,14 @@
                 "Admin": "FULL",
                 "User": "FULL"
             }
+        },
+        {
+            "page_path": "/eyerate/admin",
+            "page_type": "Maintenance",
+            "roles": {
+                "Admin": "FULL",
+                "User": "NONE"
+            }
         }
     ],
     "settings_ui": {

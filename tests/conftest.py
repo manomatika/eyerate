@@ -37,7 +37,7 @@ def setup_plugins():
     target_dir = os.path.join(plugins_dir, "eyerate")
     os.makedirs(target_dir, exist_ok=True)
     shutil.copytree(os.path.join(EYERATE_ROOT, "src"), os.path.join(target_dir, "src"), dirs_exist_ok=True)
-    shutil.copy(os.path.join(EYERATE_ROOT, "eyerate_menu.json"), os.path.join(target_dir, "eyerate_menu.json"))
+    shutil.copy(os.path.join(EYERATE_ROOT, "eyerate_menus.json"), os.path.join(target_dir, "eyerate_menus.json"))
 
     # Copy applug.json then patch matika_version to match the running Matika
     # version. Without this, tests would fail whenever Matika's VERSION is ahead
@@ -66,7 +66,13 @@ def setup_database(setup_plugins):
     
     MatikaBase.metadata.create_all(bind=engine)
     EyeRateBase.metadata.create_all(bind=engine)
-    
+
+    from alembic.config import Config
+    from alembic import command as alembic_command
+    alembic_ini = os.path.join(os.path.dirname(__file__), "..", "..", "matika", "alembic.ini")
+    alembic_cfg = Config(alembic_ini)
+    alembic_command.stamp(alembic_cfg, "head")
+
     db = TestingSessionLocal()
     from matika.database import init_db
     init_db(db)

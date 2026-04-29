@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "menus": {
+        "application": {
+            "id": "eyerate-main",
+            "label_key": "menu_eyerate",
+            "items": [
+                {
+                    "type": "Link",
+                    "label_key": "item_securities",
+                    "href": "/eyerate/securities"
+                }
+            ]
+        },
+        "roles": [
+            {
+                "role": "User",
+                "id": "eyerate-user",
+                "label_key": "menu_eyerate",
+                "items": [
+                    {
+                        "type": "Menu",
+                        "label_key": "menu_eyerate",
+                        "items": [
+                            {
+                                "type": "Link",
+                                "label_key": "item_securities",
+                                "href": "/eyerate/securities"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "role": "Admin",
+                "id": "eyerate-admin",
+                "label_key": "menu_eyerate",
+                "items": [
+                    {
+                        "type": "Link",
+                        "label_key": "item_eyerate_admin",
+                        "href": "/eyerate/admin"
+                    }
+                ]
+            }
+        ]
+    }
+}

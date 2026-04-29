@@ -1,4 +1,7 @@
 {
+    "item_eyerate_admin": "Administración",
+    "heading_eyerate_admin": "Administración de EyeRate",
+    "msg_eyerate_admin_coming_soon": "Funciones de administración próximamente.",
     "item_securities": "Valor Financieroes",
     "label_include_securities": "Incluir Mis Valor Financieroes",
     "msg_securities_coming_soon": "Mantenimiento de Valor Financieroes Pr\u00f3ximamente",

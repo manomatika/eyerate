@@ -83,6 +83,11 @@ async def bulk_delete_securities(request: BulkDeleteRequest, _auth: User = Depen
     c = db.query(FinancialSecurity).filter(FinancialSecurity.symbol.in_([s.upper().strip() for s in request.symbols])).delete(synchronize_session=False)
     db.commit(); return {"deleted": c}
 
+@router.get("/admin", response_class=HTMLResponse, tags=[PageType.MAINTENANCE])
+async def eyerate_admin(request: Request, user: User = Depends(check_page_permission)):
+    return request.app.state.templates.TemplateResponse(request, "eyerate_admin.html", {"user": user})
+
+
 @router.post("/securities/test_endpoint", tags=[PageType.SETTINGS])
 async def test_security_endpoint(endpoint: str = Form(...), api_key: Optional[str] = Form(None), _auth: User = Depends(login_required)):
     from .endpoints import YahooScraperEndpoint, FinnhubEndpoint, AlphaVantageEndpoint
