@@ -49,7 +49,7 @@ python -m pytest tests/
 ```
 
 ## Documentation
-- [User Guide](USER_GUIDE.md)
+- [User Guide](docs/USER_GUIDE.md)
 
 ## License
 Copyright (c) 2026 Patrick James Tallman. All Rights Reserved.

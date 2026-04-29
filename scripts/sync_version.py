@@ -27,7 +27,7 @@ def sync_version():
 
     # 2. Update doc/DEPLOYMENT.md or other MD files if they mention the version
     # EyeRate might have its own documentation
-    for md_file in ["README.md", "USER_GUIDE.md"]:
+    for md_file in ["README.md", "docs/USER_GUIDE.md"]:
         if os.path.exists(md_file):
             with open(md_file, "r") as f:
                 content = f.read()

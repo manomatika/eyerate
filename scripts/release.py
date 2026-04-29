@@ -1,4 +1,5 @@
 import argparse
+import re
 import subprocess
 import sys
 import os
@@ -44,7 +45,8 @@ def update_version_file(version):
     print(f"[INFO] Updated VERSION file to {clean_version}")
 
 def update_markdown_headers(version):
-    """Updates the header of all markdown files in the project."""
+    """Updates the header and replaces version strings in all markdown files."""
+    clean_version = version.lstrip('v')
     header = f"**EyeRate** | Version: **{version}** | Copyright (c) 2026 Patrick James Tallman\n\n"
     skip_dirs = {".gemini", "node_modules", ".venv", "plugins", "__pycache__"}
 
@@ -56,18 +58,56 @@ def update_markdown_headers(version):
             md_path = os.path.join(dirpath, filename)
             with open(md_path, "r") as f:
                 content = f.read()
-            if content.startswith("**EyeRate**") or content.startswith("**Matika**"):
-                lines = content.splitlines(keepends=True)
+
+            # Apply full-content version replacements to original content first,
+            # so counts reflect actual substitutions (not the header we're about to set).
+            new_content = content
+            replacements = 0
+
+            # Replace v\d+\.\d+\.\d+ throughout (e.g. v0.0.3 → v0.0.4)
+            new_content, n = re.subn(r'v\d+\.\d+\.\d+', version, new_content)
+            replacements += n
+
+            # Replace bare versions in matika_version: "0.0.2" or matika_version: 0.0.2
+            new_content, n = re.subn(
+                r'(matika_version:\s*["\']?)\d+\.\d+\.\d+(["\']?)',
+                rf'\g<1>{clean_version}\2',
+                new_content
+            )
+            replacements += n
+
+            # Replace bare versions in version: 0.0.2 (yaml/json key at line start)
+            new_content, n = re.subn(
+                r'^(\s*version:\s*["\']?)\d+\.\d+\.\d+(["\']?)',
+                rf'\g<1>{clean_version}\2',
+                new_content,
+                flags=re.MULTILINE
+            )
+            replacements += n
+
+            # Replace bare versions in Version: **0.0.3** markdown bold context
+            new_content, n = re.subn(
+                r'(Version:\s*\*\*)\d+\.\d+\.\d+(\*\*)',
+                rf'\g<1>{clean_version}\2',
+                new_content
+            )
+            replacements += n
+
+            # Update or prepend the EyeRate header line
+            if new_content.startswith("**EyeRate**") or new_content.startswith("**Matika**"):
+                lines = new_content.splitlines(keepends=True)
                 if lines:
                     lines[0] = header
                     new_content = "".join(lines)
                 else:
                     new_content = header
             else:
-                new_content = header + content
-            with open(md_path, "w") as f:
-                f.write(new_content)
-            print(f"[INFO] Updated header in {md_path}")
+                new_content = header + new_content
+
+            if new_content != content:
+                with open(md_path, "w") as f:
+                    f.write(new_content)
+                print(f"[INFO] Updated {md_path} ({replacements} version replacement(s))")
 
 def main():
     parser = argparse.ArgumentParser(description="EyeRate Release Automation")
