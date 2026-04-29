@@ -37,15 +37,9 @@
                 "label_key": "menu_eyerate",
                 "items": [
                     {
-                        "type": "Menu",
-                        "label_key": "menu_eyerate",
-                        "items": [
-                            {
-                                "type": "Link",
-                                "label_key": "item_eyerate_admin",
-                                "href": "/eyerate/admin"
-                            }
-                        ]
+                        "type": "Link",
+                        "label_key": "item_eyerate_admin",
+                        "href": "/eyerate/admin"
                     }
                 ]
             }
