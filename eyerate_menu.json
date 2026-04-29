@@ -9,8 +9,7 @@
                 {
                     "type": "Link",
                     "label_key": "item_securities",
-                    "href": "/admin/securities",
-                    "roles": ["Admin"]
+                    "href": "/eyerate/securities"
                 }
             ]
         }

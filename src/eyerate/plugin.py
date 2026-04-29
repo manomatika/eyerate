@@ -33,7 +33,7 @@ class EyeRatePlugin(BaseAppLug):
         EyeRateBase.metadata.create_all(bind=db.get_bind())
         
         # 2. Register Routes with prefix
-        self.router.include_router(eyerate_router, prefix="/admin")
+        self.router.include_router(eyerate_router, prefix="/eyerate")
         
         # 3. Handle Static Assets
         # Resolves to eyerate/src/eyerate/static

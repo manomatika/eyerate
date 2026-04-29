@@ -27,7 +27,7 @@ async def list_securities(request: Request, user: User = Depends(check_page_perm
 async def create_security(symbol: str = Form(...), name: str = Form(...), security_type: FinancialSecurityType = Form(...), asset_class: Optional[AssetClass] = Form(None), previous_close: Optional[str] = Form(None), open_price: Optional[str] = Form(None), current_price: Optional[str] = Form(None), nav: Optional[str] = Form(None), range_52_week: Optional[str] = Form(None), avg_volume: Optional[str] = Form(None), yield_30_day: Optional[str] = Form(None), yield_7_day: Optional[str] = Form(None), _auth: User = Depends(check_page_permission), _csrf=Depends(validate_csrf), db: Session = Depends(get_db)):
     if db.query(FinancialSecurity).filter(FinancialSecurity.symbol == symbol.upper()).first(): raise HTTPException(status_code=400, detail="already exists")
     db.add(FinancialSecurity(symbol=symbol.upper(), name=name, financial_security_type=security_type, asset_class=asset_class, previous_close=previous_close, open_price=open_price, current_price=current_price, nav=nav, range_52_week=range_52_week, avg_volume=avg_volume, yield_30_day=yield_30_day, yield_7_day=yield_7_day))
-    db.commit(); return RedirectResponse(url="/admin/securities", status_code=303)
+    db.commit(); return RedirectResponse(url="/eyerate/securities", status_code=303)
 
 @router.post("/securities/update/{sec_id}")
 async def update_security(sec_id: int, symbol: str = Form(...), name: str = Form(...), security_type: FinancialSecurityType = Form(...), asset_class: Optional[AssetClass] = Form(None), previous_close: Optional[str] = Form(None), open_price: Optional[str] = Form(None), current_price: Optional[str] = Form(None), nav: Optional[str] = Form(None), range_52_week: Optional[str] = Form(None), avg_volume: Optional[str] = Form(None), yield_30_day: Optional[str] = Form(None), yield_7_day: Optional[str] = Form(None), _auth: User = Depends(check_page_permission), _csrf=Depends(validate_csrf), db: Session = Depends(get_db)):
@@ -37,13 +37,13 @@ async def update_security(sec_id: int, symbol: str = Form(...), name: str = Form
         sec.previous_close = previous_close; sec.open_price = open_price; sec.current_price = current_price
         sec.nav = nav; sec.range_52_week = range_52_week; sec.avg_volume = avg_volume
         sec.yield_30_day = yield_30_day; sec.yield_7_day = yield_7_day; db.commit()
-    return RedirectResponse(url="/admin/securities", status_code=303)
+    return RedirectResponse(url="/eyerate/securities", status_code=303)
 
 @router.post("/securities/delete/{sec_id}")
 async def delete_security(sec_id: int, _auth: User = Depends(check_page_permission), _csrf=Depends(validate_csrf), db: Session = Depends(get_db)):
     sec = db.query(FinancialSecurity).filter(FinancialSecurity.id == sec_id).first()
     if sec: db.delete(sec); db.commit()
-    return RedirectResponse(url="/admin/securities", status_code=303)
+    return RedirectResponse(url="/eyerate/securities", status_code=303)
 
 @router.get("/securities/search")
 async def search_securities(q: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):

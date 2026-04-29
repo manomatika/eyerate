@@ -24,18 +24,31 @@ globals().update({name: getattr(matika_conftest, name) for name in dir(matika_co
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_plugins():
+    import json
+    import shutil
+    from matika.core.paths import get_matika_version
+
     EYERATE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     plugins_dir = os.path.join(EYERATE_ROOT, "plugins")
-    import shutil
     if os.path.exists(plugins_dir):
         shutil.rmtree(plugins_dir)
     os.makedirs(plugins_dir, exist_ok=True)
-    
+
     target_dir = os.path.join(plugins_dir, "eyerate")
     os.makedirs(target_dir, exist_ok=True)
     shutil.copytree(os.path.join(EYERATE_ROOT, "src"), os.path.join(target_dir, "src"), dirs_exist_ok=True)
-    shutil.copy(os.path.join(EYERATE_ROOT, "applug.json"), os.path.join(target_dir, "applug.json"))
     shutil.copy(os.path.join(EYERATE_ROOT, "eyerate_menu.json"), os.path.join(target_dir, "eyerate_menu.json"))
+
+    # Copy applug.json then patch matika_version to match the running Matika
+    # version. Without this, tests would fail whenever Matika's VERSION is ahead
+    # of the matika_version declared in applug.json (which is normal during dev).
+    manifest_src = os.path.join(EYERATE_ROOT, "applug.json")
+    manifest_dest = os.path.join(target_dir, "applug.json")
+    with open(manifest_src) as f:
+        manifest = json.load(f)
+    manifest["matika_version"] = get_matika_version()
+    with open(manifest_dest, "w") as f:
+        json.dump(manifest, f, indent=4)
 
     yield plugins_dir
     if os.path.exists(plugins_dir):
