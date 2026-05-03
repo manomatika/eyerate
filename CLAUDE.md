@@ -86,6 +86,8 @@ Tests require `../matika` as a sibling directory. The conftest:
 3. Creates a temporary `plugins/eyerate/` directory by copying `src/` and the manifest files, simulating how Matika discovers and loads the plugin.
 4. Overrides `setup_database` to create both Matika and EyeRate schemas together.
 
+Tests are organized by what they exercise: `tests/` holds integration tests that require the full stack; subdirectories (`tests/scripts/`, etc.) hold pure unit tests that no-op the parent autouse fixtures. See `tests/README.md` for the full convention.
+
 ### Locale
 
 `src/eyerate/locales/en.json` — Contributes `menu_eyerate: "EyeRate"` and all field labels. Merged into Matika's global `t` dict at runtime.
