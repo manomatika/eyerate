@@ -13,9 +13,8 @@ VERSION files themselves are never modified by this script.
 matika_version source (checked in priority order):
   1. <sibling clone>/matika/VERSION   (~/dev/projects/matika/VERSION by convention)
   2. MATIKA_VERSION environment variable
-  In normal mode: if neither is available the script exits with an error.
-  In --check mode: if neither is available a warning is printed and the
-  matika_version field is skipped (the rest of the check continues).
+  If neither is available the script exits with code 2 (configuration error)
+  in both propagation and --check mode.
 
 Usage:
   python scripts/sync_version.py                # propagate (write files)
@@ -64,19 +63,18 @@ def _try_read_matika_version() -> str | None:
 
 
 def read_matika_version() -> str:
-    """Return clean matika version. Exit with error if unavailable."""
+    """Return clean matika version. Exit 2 (configuration error) if unavailable."""
     result = _try_read_matika_version()
     if result is not None:
         return result
     print(
-        "ERROR: cannot determine matika_version.\n"
-        f"  Tried: {MATIKA_REPO_ROOT / 'VERSION'} (not found)\n"
-        "  Tried: MATIKA_VERSION env var (not set)\n"
-        f"  Fix: ensure matika is cloned at {MATIKA_REPO_ROOT}, "
-        "or set MATIKA_VERSION=<version>",
+        "ERROR: cannot verify matika_version — matika's VERSION file not found\n"
+        f"  Looked for: {MATIKA_REPO_ROOT / 'VERSION'}\n"
+        "  MATIKA_VERSION env var: not set\n"
+        f"  Either clone matika as a sibling directory or set MATIKA_VERSION=<version>",
         file=sys.stderr,
     )
-    sys.exit(1)
+    sys.exit(2)
 
 
 # ---------------------------------------------------------------------------
@@ -96,24 +94,17 @@ def sync(check_only: bool = False, quiet: bool = False) -> list:
 
     quiet=True suppresses all print output (use for JSON consumers).
 
+    Exits 2 (configuration error) if matika's VERSION is unavailable in either
+    mode — a check that silently skips matika_version is dangerously incomplete.
     In check mode VERSION may carry _dev; the stripped value is what targets
     are compared against (same as propagation — no special failure for _dev).
-    In check mode, if matika's VERSION is unreachable a warning is printed
-    (unless quiet) and the matika_version field is skipped.
     """
     raw, clean = read_version()
-
-    if check_only:
-        matika_version: str | None = _try_read_matika_version()
-        if matika_version is None and not quiet:
-            print("WARN: matika VERSION not found, skipping matika_version check")
-    else:
-        matika_version = read_matika_version()  # exits if unavailable
+    matika_version: str = read_matika_version()  # exits 2 if unavailable
 
     if not quiet:
-        mv_str = f",  matika_version → {matika_version!r}" if matika_version else ""
         action = "--check: checking against" if check_only else f"{raw!r} → propagating"
-        print(f"sync_version {action} eyerate {clean!r}{mv_str}")
+        print(f"sync_version {action} eyerate {clean!r},  matika_version → {matika_version!r}")
 
     affected: list = []
 
@@ -134,28 +125,26 @@ def sync(check_only: bool = False, quiet: bool = False) -> list:
                 )
                 any_drift = True
 
-            if matika_version is not None:
-                found_matika = data.get("matika_version", "<not found>")
-                if found_matika != matika_version:
-                    if not quiet:
-                        print(
-                            f'DRIFT  {rel}: expected matika_version "{matika_version}", '
-                            f'found "{found_matika}"'
-                        )
-                    affected.append(
-                        {
-                            "path": rel,
-                            "field": "matika_version",
-                            "expected": matika_version,
-                            "found": found_matika,
-                        }
+            found_matika = data.get("matika_version", "<not found>")
+            if found_matika != matika_version:
+                if not quiet:
+                    print(
+                        f'DRIFT  {rel}: expected matika_version "{matika_version}", '
+                        f'found "{found_matika}"'
                     )
-                    any_drift = True
+                affected.append(
+                    {
+                        "path": rel,
+                        "field": "matika_version",
+                        "expected": matika_version,
+                        "found": found_matika,
+                    }
+                )
+                any_drift = True
 
             if not any_drift and not quiet:
                 print(f"  OK       {rel}")
         else:
-            assert matika_version is not None  # guaranteed: read_matika_version() exits if absent
             changed = (
                 data.get("version") != clean
                 or data.get("matika_version") != matika_version
