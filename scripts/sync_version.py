@@ -18,8 +18,9 @@ matika_version source (checked in priority order):
   matika_version field is skipped (the rest of the check continues).
 
 Usage:
-  python scripts/sync_version.py           # propagate (write files)
-  python scripts/sync_version.py --check   # read-only drift check
+  python scripts/sync_version.py                # propagate (write files)
+  python scripts/sync_version.py --check        # read-only drift check, human output
+  python scripts/sync_version.py --check --json # read-only drift check, JSON output
 """
 
 import argparse
@@ -82,34 +83,39 @@ def read_matika_version() -> str:
 # Core: propagate or check (single code path, branches only at write step)
 # ---------------------------------------------------------------------------
 
-def sync(check_only: bool = False) -> list[str]:
+def sync(check_only: bool = False, quiet: bool = False) -> list:
     """
     Propagate VERSION (and matika VERSION) to all targets (check_only=False),
     or compare without writing (check_only=True).
 
     Returns:
-      Normal mode  — list of relative paths that were written.
-      Check mode   — list of relative paths that drifted.
+      Normal mode  — list[str]  of relative paths that were written.
+      Check mode   — list[dict] of drift entries:
+                     {"path", "field", "expected", "found"} per drifted field.
+                     Empty list means clean.
+
+    quiet=True suppresses all print output (use for JSON consumers).
 
     In check mode VERSION may carry _dev; the stripped value is what targets
     are compared against (same as propagation — no special failure for _dev).
-    In check mode, if matika's VERSION is unreachable a warning is printed and
-    the matika_version field is skipped; the rest of the check continues.
+    In check mode, if matika's VERSION is unreachable a warning is printed
+    (unless quiet) and the matika_version field is skipped.
     """
     raw, clean = read_version()
 
     if check_only:
         matika_version: str | None = _try_read_matika_version()
-        if matika_version is None:
+        if matika_version is None and not quiet:
             print("WARN: matika VERSION not found, skipping matika_version check")
     else:
         matika_version = read_matika_version()  # exits if unavailable
 
-    mv_str = f",  matika_version → {matika_version!r}" if matika_version else ""
-    action = "--check: checking against" if check_only else f"{raw!r} → propagating"
-    print(f"sync_version {action} eyerate {clean!r}{mv_str}")
+    if not quiet:
+        mv_str = f",  matika_version → {matika_version!r}" if matika_version else ""
+        action = "--check: checking against" if check_only else f"{raw!r} → propagating"
+        print(f"sync_version {action} eyerate {clean!r}{mv_str}")
 
-    affected: list[str] = []
+    affected: list = []
 
     applug = REPO_ROOT / "applug.json"
     if applug.exists():
@@ -117,22 +123,36 @@ def sync(check_only: bool = False) -> list[str]:
         data = json.loads(applug.read_text())
 
         if check_only:
-            drifted = False
+            any_drift = False
+
             found_version = data.get("version", "<not found>")
             if found_version != clean:
-                print(f"DRIFT  {rel}: expected version '{clean}', found '{found_version}'")
-                drifted = True
+                if not quiet:
+                    print(f'DRIFT  {rel}: expected version "{clean}", found "{found_version}"')
+                affected.append(
+                    {"path": rel, "field": "version", "expected": clean, "found": found_version}
+                )
+                any_drift = True
+
             if matika_version is not None:
                 found_matika = data.get("matika_version", "<not found>")
                 if found_matika != matika_version:
-                    print(
-                        f"DRIFT  {rel}: expected matika_version '{matika_version}', "
-                        f"found '{found_matika}'"
+                    if not quiet:
+                        print(
+                            f'DRIFT  {rel}: expected matika_version "{matika_version}", '
+                            f'found "{found_matika}"'
+                        )
+                    affected.append(
+                        {
+                            "path": rel,
+                            "field": "matika_version",
+                            "expected": matika_version,
+                            "found": found_matika,
+                        }
                     )
-                    drifted = True
-            if drifted:
-                affected.append(rel)
-            else:
+                    any_drift = True
+
+            if not any_drift and not quiet:
                 print(f"  OK       {rel}")
         else:
             assert matika_version is not None  # guaranteed: read_matika_version() exits if absent
@@ -144,12 +164,15 @@ def sync(check_only: bool = False) -> list[str]:
                 data["version"] = clean
                 data["matika_version"] = matika_version
                 applug.write_text(json.dumps(data, indent=4) + "\n")
-                print(f"  UPDATED  {rel}")
+                if not quiet:
+                    print(f"  UPDATED  {rel}")
                 affected.append(rel)
             else:
-                print(f"  OK       {rel}")
+                if not quiet:
+                    print(f"  OK       {rel}")
     else:
-        print("  SKIP    applug.json (not found)")
+        if not quiet:
+            print("  SKIP    applug.json (not found)")
 
     return affected
 
@@ -209,12 +232,24 @@ if __name__ == "__main__":
         action="store_true",
         help="Read-only drift check. Exit 0 if clean, 1 if any file drifted.",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON output (requires --check). Exit 0 if clean, 1 if drift.",
+    )
     args = parser.parse_args()
 
-    drifted = sync(check_only=args.check)
+    if args.json and not args.check:
+        print("ERROR: --json requires --check", file=sys.stderr)
+        sys.exit(2)
+
+    drifted: list = sync(check_only=args.check, quiet=args.json)
 
     if args.check:
+        if args.json:
+            _, clean = read_version()
+            print(json.dumps({"version": clean, "drift": drifted}))
         if drifted:
             sys.exit(1)
-        else:
+        elif not args.json:
             print("sync_version --check: no drift")

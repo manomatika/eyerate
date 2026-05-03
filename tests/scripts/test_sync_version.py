@@ -8,6 +8,7 @@ to fixture directories.
 """
 
 import json
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -57,7 +58,7 @@ def patched(eyerate_root: Path, matika_root: Path):
             yield
 
 
-def run_sync(eyerate_root: Path, matika_root: Path, check_only: bool = False) -> list[str]:
+def run_sync(eyerate_root: Path, matika_root: Path, check_only: bool = False) -> list:
     with patched(eyerate_root, matika_root):
         return sync_version.sync(check_only=check_only)
 
@@ -177,7 +178,11 @@ def test_check_mode_reports_version_drift(tmp_path):
     data["version"] = "0.0.1"
     (root / "applug.json").write_text(json.dumps(data, indent=4) + "\n")
     drifted = run_sync(root, mroot, check_only=True)
-    assert drifted == ["applug.json"]
+    assert len(drifted) == 1
+    assert drifted[0]["path"] == "applug.json"
+    assert drifted[0]["field"] == "version"
+    assert drifted[0]["expected"] == "0.0.4"
+    assert drifted[0]["found"] == "0.0.1"
 
 
 def test_check_mode_reports_matika_version_drift(tmp_path):
@@ -187,7 +192,9 @@ def test_check_mode_reports_matika_version_drift(tmp_path):
     data["matika_version"] = "9.9.9"
     (root / "applug.json").write_text(json.dumps(data, indent=4) + "\n")
     drifted = run_sync(root, mroot, check_only=True)
-    assert drifted == ["applug.json"]
+    assert len(drifted) == 1
+    assert drifted[0]["field"] == "matika_version"
+    assert drifted[0]["found"] == "9.9.9"
 
 
 def test_check_mode_does_not_modify_files(tmp_path):
@@ -227,7 +234,8 @@ def test_check_mode_still_reports_version_drift_when_matika_absent(tmp_path):
     data["version"] = "0.0.1"
     (root / "applug.json").write_text(json.dumps(data, indent=4) + "\n")
     drifted = run_sync(root, mroot, check_only=True)
-    assert drifted == ["applug.json"]
+    assert len(drifted) == 1
+    assert drifted[0]["field"] == "version"
 
 
 def test_release_drift_gate_uses_check_mode(tmp_path):
@@ -238,3 +246,65 @@ def test_release_drift_gate_uses_check_mode(tmp_path):
         sync_version.sync()                          # propagation (as release does)
         drifted = sync_version.sync(check_only=True) # drift gate (as release does)
     assert drifted == [], f"Drift gate should pass after clean propagation, got: {drifted}"
+
+
+# ---------------------------------------------------------------------------
+# --check --json mode
+# ---------------------------------------------------------------------------
+
+SCRIPTS_DIR = Path(__file__).parent.parent.parent / "scripts"
+
+
+def test_check_json_clean_tree_exits_0_with_empty_drift(tmp_path):
+    root, mroot = make_tree(tmp_path, "0.0.4_dev")
+    run_sync(root, mroot)
+    with patched(root, mroot):
+        _, clean = sync_version.read_version()
+        drifted = sync_version.sync(check_only=True, quiet=True)
+    output = json.dumps({"version": clean, "drift": drifted})
+    parsed = json.loads(output)
+    assert parsed["version"] == "0.0.4"
+    assert parsed["drift"] == []
+
+
+def test_check_json_drifted_field_returns_entry_with_field_key(tmp_path):
+    root, mroot = make_tree(tmp_path, "0.0.4_dev")
+    run_sync(root, mroot)
+    data = json.loads((root / "applug.json").read_text())
+    data["matika_version"] = "0.0.3"
+    (root / "applug.json").write_text(json.dumps(data, indent=4) + "\n")
+    with patched(root, mroot):
+        _, clean = sync_version.read_version()
+        drifted = sync_version.sync(check_only=True, quiet=True)
+    output = json.dumps({"version": clean, "drift": drifted})
+    parsed = json.loads(output)
+    assert len(parsed["drift"]) == 1
+    entry = parsed["drift"][0]
+    assert entry["path"] == "applug.json"
+    assert entry["field"] == "matika_version"
+    assert entry["expected"] == "0.0.4"
+    assert entry["found"] == "0.0.3"
+
+
+def test_json_without_check_exits_2(tmp_path):
+    root, mroot = make_tree(tmp_path, "0.0.4_dev")
+    result = subprocess.run(
+        [sys.executable, str(SCRIPTS_DIR / "sync_version.py"), "--json"],
+        capture_output=True,
+        text=True,
+        cwd=str(root),
+    )
+    assert result.returncode == 2
+
+
+def test_drift_line_uses_double_quotes(tmp_path, capsys):
+    """Human-readable DRIFT line must use double quotes, not single quotes."""
+    root, mroot = make_tree(tmp_path, "0.0.4_dev")
+    run_sync(root, mroot)
+    data = json.loads((root / "applug.json").read_text())
+    data["version"] = "0.0.1"
+    (root / "applug.json").write_text(json.dumps(data, indent=4) + "\n")
+    run_sync(root, mroot, check_only=True)
+    out = capsys.readouterr().out
+    assert 'expected version "0.0.4", found "0.0.1"' in out
+    assert "expected version '0.0.4'" not in out
