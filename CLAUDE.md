@@ -92,6 +92,21 @@ Tests are organized by what they exercise: `tests/` holds integration tests that
 
 `src/eyerate/locales/en.json` — Contributes `menu_eyerate: "EyeRate"` and all field labels. Merged into Matika's global `t` dict at runtime.
 
+## Release Pipeline
+
+- `VERSION` is the single source of truth for version metadata. Never hand-edit version literals in any other file (`applug.json`, etc.) — the release tooling propagates from `VERSION`.
+- During development, `VERSION` carries a `_dev` suffix (e.g. `0.0.4_dev`). Propagated files always carry the stripped version (e.g. `0.0.4`) — `_dev` is a marker on `VERSION` only.
+- `scripts/release.py <version>` is the release entry point: verifies `VERSION` currently reads `<target>_dev`, strips `_dev`, runs `sync_version.py`, runs the drift pre-flight check, commits. Does **not** push, tag, or create a GitHub release — those steps are manual, after human review.
+- `scripts/sync_version.py` propagates `VERSION` into `applug.json`: `"version"` from this repo's `VERSION`; `"matika_version"` from matika's `VERSION` (resolved via sibling clone at `../matika` or `MATIKA_VERSION` env var). When adding a new file with a version literal, add it to the script's allowlist.
+- If matika's `VERSION` is unavailable (sibling clone absent and env var unset), `sync_version.py` exits 2 with a clear error. This is a hard error, not a warning — eyerate cannot be drift-checked or released without matika's version.
+- `scripts/sync_version.py --check` runs in read-only drift detection mode. Exits 0 (clean), 1 (drift), 2 (configuration error). `--check --json` produces structured output: `{"version": "...", "drift": [{"path": "...", "expected": "...", "found": "..."}]}`.
+
+## Test Layout
+
+- `tests/` — integration tests requiring the full matika+eyerate application stack. The `conftest.py` here uses autouse session fixtures.
+- `tests/scripts/` — tests for the `scripts/` directory (release tooling, drift detection). Pure unit tests with no application-stack dependencies; local `conftest.py` no-ops the parent autouse fixtures.
+- New tests go in the directory that matches what they exercise. Tests that don't need the application stack do not belong in `tests/`.
+
 ## Standing Rules
 
 - Never run `git merge` or `rm -rf`.
