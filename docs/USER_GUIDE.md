@@ -1,4 +1,4 @@
-**EyeRate** | Version: **0.0.2** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **v0.0.4** | Copyright (c) 2026 Patrick James Tallman
 
 # EyeRate User Guide
 

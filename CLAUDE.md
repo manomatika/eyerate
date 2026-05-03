@@ -1,4 +1,4 @@
-**EyeRate** | Version: **0.0.3** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **v0.0.4** | Copyright (c) 2026 Patrick James Tallman
 
 # CLAUDE.md
 
@@ -25,7 +25,7 @@ python -m pytest tests/test_securities.py::test_securities_crud
 **Development workflow scripts:**
 ```bash
 python scripts/start_milestone.py   # Create GitHub milestone + branch + issues from milestone_tasks.yaml
-python scripts/release.py --version v0.0.2  # PR, merge, tag, GitHub release, close milestone
+python scripts/release.py vX.Y.Z             # commit VERSION + applug.json; push/tag/PR manually after review
 python scripts/sync_version.py      # Sync VERSION file → applug.json
 ```
 
