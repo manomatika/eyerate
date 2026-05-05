@@ -1,0 +1,11 @@
+{
+  "name": "eyerate-frontend",
+  "version": "0.0.4-dev",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "rootDir": "src/eyerate/ts",
+    "outDir": "src/eyerate/static/js",
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "baseUrl": ".",
+    "paths": {
+      "/static/js/maintenance_activity.js": ["src/eyerate/ts/shared/matika-externals"]
+    }
+  },
+  "include": ["src/eyerate/ts/**/*"],
+  "exclude": ["node_modules"]
+}

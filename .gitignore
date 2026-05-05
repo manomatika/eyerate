@@ -239,3 +239,10 @@ logs/
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+
+# TypeScript / Frontend
+# NOTE: src/eyerate/static/ is intentionally NOT ignored.
+# Compiled JavaScript output (src/eyerate/static/js/) is committed to git so that
+# the repo is self-contained without requiring a build step to run in dev or CI.
+# Only ignore npm's local tooling directory.
+node_modules/
