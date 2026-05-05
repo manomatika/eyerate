@@ -29,6 +29,12 @@ python scripts/release.py vX.Y.Z             # commit VERSION + applug.json; pus
 python scripts/sync_version.py      # Sync VERSION file → applug.json
 ```
 
+**TypeScript compilation:**
+```bash
+npm install     # one-time: installs typescript devDependency
+npm run build   # compile src/eyerate/ts/**/*.ts → src/eyerate/static/js/
+```
+
 ## Architecture
 
 ### Manifest Files
@@ -49,12 +55,35 @@ python scripts/sync_version.py      # Sync VERSION file → applug.json
 - `_build_role_menus` has been removed; role hub construction now derives entirely from `*_menus.json` roles sections plus core menus.
 - The `fresh_login` session flag ensures users land on the Default hub immediately after login.
 
+### TypeScript Layout Convention
+
+TypeScript source lives under `src/eyerate/ts/` with mandatory subdirectories:
+
+| Directory | Purpose |
+|---|---|
+| `ts/admin/` | Admin-page-specific scripts (e.g. `admin-securities.ts`) |
+| `ts/dialogs/` | Reusable dialog/modal components (e.g. `lookup-dialog.ts`) |
+| `ts/shared/` | Types, utilities, and ambient declarations shared across features |
+
+**Naming rules:**
+- TypeScript source filenames: `kebab-case.ts`
+- Python files: `snake_case.py` (unchanged)
+- HTML templates: `snake_case.html` (unchanged — Jinja2 template names are Python-realm)
+
+**Compilation:** `tsconfig.json` mirrors the `ts/` subdirectory structure into `src/eyerate/static/js/`:
+- `ts/admin/admin-securities.ts` → `static/js/admin/admin-securities.js`
+- `ts/dialogs/lookup-dialog.ts` → `static/js/dialogs/lookup-dialog.js`
+
+**Committed output:** Compiled JS is committed to git. The repo is self-contained; no build step is required to run in dev or CI. Run `npm run build` after editing any `.ts` file and commit both the source and the compiled output together.
+
+**Matika-side imports (temporary):** Until Phase A.3 publishes `@manomatika/matika-frontend` as an npm package, cross-framework imports use absolute browser URLs (e.g. `/static/js/maintenance_activity.js`). Type declarations for these live in `ts/shared/matika-externals.d.ts` with a `TODO(A.3)` marker. When A.3 lands, delete that file, remove the `paths` entry from `tsconfig.json`, and switch to the npm import.
+
 ### Plugin Wiring (`plugin.py`)
 
 `EyeRatePlugin` extends `BaseAppLug`. The `on_load()` method runs at Matika startup and:
 1. Runs SQLAlchemy `create_all` to migrate the `securities` table (plugin-managed; not in Matika's Alembic migrations).
 2. Registers the FastAPI router at the `/admin` prefix.
-3. Mounts `/static/eyerate` if a `static/` directory exists.
+3. Mounts `/static/eyerate` pointing at `src/eyerate/static/` — serves compiled JS under `/static/eyerate/js/admin/` and `/static/eyerate/js/dialogs/`.
 4. Appends the plugin's `templates/` directory to Jinja2's search path.
 
 ### Security Requirements
