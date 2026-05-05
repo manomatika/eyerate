@@ -192,12 +192,12 @@ def drift_check(expected_version: str, expected_matika_version: str) -> None:
         found_matika = data.get("matika_version", "<not found>")
         if found_version != expected_version:
             errors.append(
-                f"  applug.json: version={found_version!r}  (expected {expected_version!r})"
+                f'  applug.json: version="{found_version}"  (expected "{expected_version}")'
             )
         if found_matika != expected_matika_version:
             errors.append(
-                f"  applug.json: matika_version={found_matika!r}  "
-                f"(expected {expected_matika_version!r})"
+                f'  applug.json: matika_version="{found_matika}"  '
+                f'(expected "{expected_matika_version}")'
             )
 
     if errors:
@@ -207,8 +207,8 @@ def drift_check(expected_version: str, expected_matika_version: str) -> None:
         sys.exit(1)
 
     print(
-        f"drift check: applug.json version={expected_version!r}, "
-        f"matika_version={expected_matika_version!r}  ✓"
+        f'drift check: applug.json version="{expected_version}", '
+        f'matika_version="{expected_matika_version}"  ✓'
     )
 
 
