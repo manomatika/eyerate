@@ -83,7 +83,7 @@ TypeScript source lives under `src/eyerate/ts/` with mandatory subdirectories:
 `EyeRatePlugin` extends `BaseAppLug`. The `on_load()` method runs at Matika startup and:
 1. Runs SQLAlchemy `create_all` to migrate the `securities` table (plugin-managed; not in Matika's Alembic migrations).
 2. Registers the FastAPI router at the `/admin` prefix.
-3. Mounts `/static/eyerate` pointing at `src/eyerate/static/` — serves compiled JS under `/static/eyerate/js/admin/` and `/static/eyerate/js/dialogs/`.
+3. Mounts `/eyerate/static` pointing at `src/eyerate/static/` — serves compiled JS under `/eyerate/static/js/admin/` and `/eyerate/static/js/dialogs/`. Note: the path is `/eyerate/static` (not `/static/eyerate`) to avoid a Starlette route-ordering conflict with matika's broad `/static` catch-all mount.
 4. Appends the plugin's `templates/` directory to Jinja2's search path.
 
 ### Security Requirements

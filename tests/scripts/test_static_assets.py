@@ -2,7 +2,7 @@
 Regression test: eyerate static asset serving.
 
 This test directly mounts the StaticFiles directory that EyeRatePlugin.on_load()
-mounts at /static/eyerate, then verifies the compiled JS files are reachable.
+mounts at /eyerate/static, then verifies the compiled JS files are reachable.
 
 BEFORE A1 reorganization: FAILS — src/eyerate/static/ did not exist, the mount
 was silently skipped by the os.path.exists() guard, and both URLs returned 404.
@@ -38,7 +38,7 @@ STATIC_DIR = EYERATE_PKG / "static"
 def client():
     app = FastAPI()
     app.mount(
-        "/static/eyerate",
+        "/eyerate/static",
         StaticFiles(directory=str(STATIC_DIR)),
         name="eyerate_static",
     )
@@ -47,7 +47,7 @@ def client():
 
 
 def test_admin_securities_js_returns_200(client):
-    r = client.get("/static/eyerate/js/admin/admin-securities.js")
+    r = client.get("/eyerate/static/js/admin/admin-securities.js")
     assert r.status_code == 200, (
         f"Expected 200, got {r.status_code}. "
         "Check that src/eyerate/static/js/admin/admin-securities.js exists."
@@ -55,18 +55,18 @@ def test_admin_securities_js_returns_200(client):
 
 
 def test_admin_securities_js_content_type(client):
-    r = client.get("/static/eyerate/js/admin/admin-securities.js")
+    r = client.get("/eyerate/static/js/admin/admin-securities.js")
     ct = r.headers.get("content-type", "")
     assert "javascript" in ct.lower(), f"Unexpected Content-Type: {ct!r}"
 
 
 def test_admin_securities_js_body_non_empty(client):
-    r = client.get("/static/eyerate/js/admin/admin-securities.js")
+    r = client.get("/eyerate/static/js/admin/admin-securities.js")
     assert len(r.content) > 0
 
 
 def test_lookup_dialog_js_returns_200(client):
-    r = client.get("/static/eyerate/js/dialogs/lookup-dialog.js")
+    r = client.get("/eyerate/static/js/dialogs/lookup-dialog.js")
     assert r.status_code == 200, (
         f"Expected 200, got {r.status_code}. "
         "Check that src/eyerate/static/js/dialogs/lookup-dialog.js exists."
@@ -74,11 +74,11 @@ def test_lookup_dialog_js_returns_200(client):
 
 
 def test_lookup_dialog_js_content_type(client):
-    r = client.get("/static/eyerate/js/dialogs/lookup-dialog.js")
+    r = client.get("/eyerate/static/js/dialogs/lookup-dialog.js")
     ct = r.headers.get("content-type", "")
     assert "javascript" in ct.lower(), f"Unexpected Content-Type: {ct!r}"
 
 
 def test_lookup_dialog_js_body_non_empty(client):
-    r = client.get("/static/eyerate/js/dialogs/lookup-dialog.js")
+    r = client.get("/eyerate/static/js/dialogs/lookup-dialog.js")
     assert len(r.content) > 0

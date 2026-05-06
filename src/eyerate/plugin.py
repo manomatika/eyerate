@@ -36,10 +36,13 @@ class EyeRatePlugin(BaseAppLug):
         self.router.include_router(eyerate_router, prefix="/eyerate")
         
         # 3. Handle Static Assets
-        # Resolves to eyerate/src/eyerate/static
+        # Mounts at /eyerate/static (not /static/eyerate) to avoid Starlette route
+        # ordering conflict: matika mounts a broad /static catch-all before plugins
+        # load, so /static/eyerate/... requests never reach a plugin-added mount.
+        # /eyerate/static sits outside matika's /static catch-all and resolves cleanly.
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         if os.path.exists(static_dir) and self.app:
-            self.app.mount("/static/eyerate", StaticFiles(directory=static_dir), name="eyerate_static")
+            self.app.mount("/eyerate/static", StaticFiles(directory=static_dir), name="eyerate_static")
 
         # 4. Integrate Templates
         if self.templates:
