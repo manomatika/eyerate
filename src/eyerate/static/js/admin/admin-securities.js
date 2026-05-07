@@ -1,7 +1,4 @@
-// TODO(A.3): Replace with `import { MaintenanceActivityManager, ActivityMetadata } from '@manomatika/matika-frontend';`
-// once matika publishes its npm package. The absolute URL below couples this file to matika's
-// static asset serving path; the npm import in A.3 eliminates that URL coupling entirely.
-import { MaintenanceActivityManager } from '/static/js/maintenance_activity.js';
+import { MaintenanceActivityManager } from '@manomatika/matika-frontend';
 import { LookupDialog } from '../dialogs/lookup-dialog.js';
 class SecuritiesManager extends MaintenanceActivityManager {
     constructor(metadata) {

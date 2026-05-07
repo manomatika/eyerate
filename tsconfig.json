@@ -10,11 +10,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": false,
-    "baseUrl": ".",
-    "paths": {
-      "/static/js/maintenance_activity.js": ["src/eyerate/ts/shared/matika-externals"]
-    }
+    "declaration": false
   },
   "include": ["src/eyerate/ts/**/*"],
   "exclude": ["node_modules"]
