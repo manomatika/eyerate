@@ -19,7 +19,7 @@ python -m pytest tests/
 **Run a single test:**
 ```bash
 export PYTHONPATH=src:../matika/src
-python -m pytest tests/test_securities.py::test_securities_crud
+python -m pytest tests/integration/test_securities.py::test_securities_crud
 ```
 
 **Development workflow scripts:**
@@ -107,15 +107,14 @@ The active endpoint is resolved at runtime from the Matika system setting `finan
 
 FastAPI router registered at `/eyerate/securities`. All routes use `get_db`, `check_page_permission`, and `validate_csrf` (form routes) from Matika's security layer.
 
-### Test Setup (`tests/conftest.py`)
+### Test Setup
 
-Tests require `../matika` as a sibling directory. The conftest:
-1. Adds `../matika/src` and `../matika/tests` to `sys.path`.
-2. Dynamically loads and re-exports all fixtures from Matika's own `conftest.py`.
-3. Creates a temporary `plugins/eyerate/` directory by copying `src/` and the manifest files, simulating how Matika discovers and loads the plugin.
-4. Overrides `setup_database` to create both Matika and EyeRate schemas together.
+Tests require `../matika` as a sibling directory. Conftest is split across two files to enforce tier isolation:
 
-Tests are organized by what they exercise: `tests/` holds integration tests that require the full stack; subdirectories (`tests/scripts/`, etc.) hold pure unit tests that no-op the parent autouse fixtures. See `tests/README.md` for the full convention.
+- `tests/conftest.py` — minimal shared setup. Adds `../matika/src` and `../matika/tests` to `sys.path`. Imports nothing from `eyerate.*` or `matika.*`. Loads cleanly in any Python environment.
+- `tests/integration/conftest.py` — stack setup. Loads matika's `conftest.py` via `importlib`, re-exports its fixtures, and provides session-scoped autouse fixtures (`setup_plugins`, `setup_database`) that copy `src/` into a temporary `plugins/eyerate/` directory and create both Matika and EyeRate schemas.
+
+The integration conftest is loaded only when pytest collects tests under `tests/integration/`. Scripts-tier tests under `tests/scripts/` never trigger the matika exec or any sqlalchemy import.
 
 ### Locale
 
@@ -132,9 +131,13 @@ Tests are organized by what they exercise: `tests/` holds integration tests that
 
 ## Test Layout
 
-- `tests/` — integration tests requiring the full matika+eyerate application stack. The `conftest.py` here uses autouse session fixtures.
-- `tests/scripts/` — tests for the `scripts/` directory (release tooling, drift detection). Pure unit tests with no application-stack dependencies; local `conftest.py` no-ops the parent autouse fixtures.
-- New tests go in the directory that matches what they exercise. Tests that don't need the application stack do not belong in `tests/`.
+Three buckets, separated by directory. Tier isolation is enforced by directory layout — the parent conftest cannot accidentally pull stack code into the scripts tier.
+
+- `tests/conftest.py` — minimal shared setup only. Adds `../matika/src` and `../matika/tests` to `sys.path`. **Never load stack-coupled code here. Never `exec_module` matika's conftest here.** Doing so breaks the contract that `pytest tests/scripts/` runs in any Python environment without venv setup.
+- `tests/integration/` — stack-coupled tests requiring the full matika+eyerate application stack. Owns the matika conftest re-export and any DB / plugin / FastAPI setup. Has its own `conftest.py`.
+- `tests/scripts/` — stack-independent unit tests for the `scripts/` directory and other infrastructure (release tooling, drift detection, static-asset layout). Runs without venv, without sqlalchemy, without any `eyerate.*` or `matika.*` runtime imports. **Has no `conftest.py` of its own** — inherits only from the minimal parent. Tests that need optional deps (e.g. fastapi for the static-asset regression test) use `pytest.importorskip` to gracefully degrade in minimal environments.
+
+The tier separation is enforced by directory structure. Do not collapse back to a single conftest. When adding a test, choose the bucket by what it actually imports: any `eyerate.*` / `matika.*` runtime import → `tests/integration/`. No such import → `tests/scripts/`.
 
 ## Standing Rules
 

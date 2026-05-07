@@ -1,8 +1,38 @@
 # eyerate tests
 
-Tests are organized by what they exercise.
+Three buckets, separated by directory. The tier each test belongs to is
+determined by what it actually exercises, NOT by convention alone — the
+tier separation is enforced by directory layout so that the parent
+conftest cannot accidentally pull stack code into the scripts tier.
 
-- `tests/` — integration tests that require the full matika+eyerate application stack. The `conftest.py` here uses autouse session fixtures to bring up the stack.
-- `tests/scripts/` — tests for the `scripts/` directory (release tooling, sync_version, drift detection). Pure unit tests with no application-stack dependencies. The local `conftest.py` no-ops the parent autouse fixtures.
+## Layout
 
-When adding a new test, choose the directory based on what the test actually needs. If a test could run with no application stack at all, it belongs under a subdirectory matching what it tests (`tests/scripts/`, future `tests/utils/`, etc.). If it needs the stack, it goes at the top level.
+- `tests/conftest.py` — minimal shared setup. Adds matika's `src/` and
+  `tests/` to `sys.path`. **Must not** import or load anything that
+  pulls in matika's runtime stack (sqlalchemy, FastAPI app, etc.).
+
+- `tests/integration/` — stack-coupled tests. Owns the matika-conftest
+  exec, fixture re-export, and session-scoped autouse fixtures
+  (`setup_plugins`, `setup_database`). Runs only with a venv that has
+  matika's full dependency tree.
+
+- `tests/scripts/` — stack-independent unit tests for the `scripts/`
+  directory and other infrastructure. **No conftest of its own** —
+  inherits only from the minimal parent. Must run from a fresh shell
+  with no venv, no sqlalchemy, no eyerate or matika runtime imports
+  reachable.
+
+## Choosing the right bucket
+
+When adding a test:
+
+- Does it import anything from `eyerate.*` or `matika.*` runtime
+  modules? Or use a fixture from matika's conftest? → `tests/integration/`.
+- Does it test pure-Python infrastructure (release tooling, drift
+  detection, file layout) without importing the stack? →
+  `tests/scripts/`. Use `pytest.importorskip` for optional deps that
+  let the test gracefully degrade in minimal environments.
+
+Do not relax the scripts-tier contract. If a test feels like it
+"almost" belongs in scripts but needs one or two stack imports, it
+belongs in integration.
