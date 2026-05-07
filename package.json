@@ -6,6 +6,7 @@
     "build": "tsc"
   },
   "devDependencies": {
+    "@manomatika/matika-frontend": "0.0.4-dev.2",
     "typescript": "^5.5.0"
   }
 }
