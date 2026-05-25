@@ -6,7 +6,7 @@ This guide provides instructions on how to use the EyeRate financial tracking fe
 
 ## 1. Accessing EyeRate
 Once EyeRate is installed into Matika, it adds new capabilities to your dashboard:
-- **Securities Maintenance:** Found under the **Activities** menu.
+- **Securities Maintenance:** Found under the **EyeRate** menu in the application hub.
 - **Provider Settings:** Found under **User Settings** (if you have permission).
 
 ## 2. Managing Securities

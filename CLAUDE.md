@@ -76,7 +76,13 @@ TypeScript source lives under `src/eyerate/ts/` with mandatory subdirectories:
 
 **Committed output:** Compiled JS is committed to git. The repo is self-contained; no build step is required to run in dev or CI. Run `npm run build` after editing any `.ts` file and commit both the source and the compiled output together.
 
-**Matika-side imports (temporary):** Until Phase A.3 publishes `@manomatika/matika-frontend` as an npm package, cross-framework imports use absolute browser URLs (e.g. `/static/js/maintenance_activity.js`). Type declarations for these live in `ts/shared/matika-externals.d.ts` with a `TODO(A.3)` marker. When A.3 lands, delete that file, remove the `paths` entry from `tsconfig.json`, and switch to the npm import.
+**Matika-side imports:** Cross-framework imports use the npm bare specifier `@manomatika/matika-frontend`, e.g.:
+
+```typescript
+import { MaintenanceActivityManager, ActivityMetadata } from '@manomatika/matika-frontend';
+```
+
+At runtime, matika's `base.html` ships an `<script type="importmap">` that resolves this specifier to `/static/js/index.js` (served from matika's static directory). The npm package on GitHub Packages is consumed at build time for TypeScript type checking; the runtime resolution happens entirely through the import map. The earlier `ts/shared/matika-externals.d.ts` shim and the `paths` entry in `tsconfig.json` (TODO(A.3) markers) were removed when A.3 landed — that directory and entry no longer exist. `npm run build` is still required after editing any `.ts` file; compiled JS is committed alongside source per repo convention.
 
 ### Plugin Wiring (`plugin.py`)
 
