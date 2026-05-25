@@ -123,7 +123,7 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
             return {
                 "symbol": symbol,
                 "name": info.get("longName") or info.get("shortName") or symbol,
-                "security_type": self._map_security_type(quote_type),
+                "financial_security_type": self._map_security_type(quote_type),
                 "asset_class": self._infer_asset_class(info),
                 "current_price": str(info.get("regularMarketPrice", "")),
                 "previous_close": str(info.get("regularMarketPreviousClose", "")),
@@ -186,7 +186,7 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
             return {
                 "symbol": symbol,
                 "name": p_data.get("name") or symbol,
-                "security_type": self._map_security_type(p_data.get("quoteType", "EQUITY")),
+                "financial_security_type": self._map_security_type(p_data.get("quoteType", "EQUITY")),
                 "asset_class": None,
                 "current_price": str(q_data.get("c", "")),
                 "previous_close": str(q_data.get("pc", "")),
@@ -248,7 +248,7 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
             return {
                 "symbol": symbol,
                 "name": symbol,
-                "security_type": FinancialSecurityType.STOCK.value,
+                "financial_security_type": FinancialSecurityType.STOCK.value,
                 "asset_class": None,
                 "current_price": data.get("05. price", ""),
                 "previous_close": data.get("08. previous close", ""),

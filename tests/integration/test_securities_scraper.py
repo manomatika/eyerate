@@ -45,6 +45,6 @@ async def test_yahoo_endpoint_lookup(mock_ticker):
     assert data is not None
     assert data["symbol"] == "VOO"
     assert data["name"] == "Vanguard S&P 500 ETF"
-    assert data["security_type"] == SecurityType.ETF.value
+    assert data["financial_security_type"] == SecurityType.ETF.value
     assert data["current_price"] == "450.12"
     assert data["yield_30_day"] == "0.015"

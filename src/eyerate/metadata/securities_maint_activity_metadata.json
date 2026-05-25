@@ -21,7 +21,7 @@
     "fields": [
       {"name": "symbol", "label_key": "label_symbol", "read_only": false, "required": true, "has_lookup": true},
       {"name": "name", "label_key": "label_name", "read_only": false, "required": true},
-      {"name": "financial_security_type", "label_key": "label_financial_security_type", "read_only": false, "type": "select", "options_source": "financial_security_types"},
+      {"name": "financial_security_type", "label_key": "label_financial_security_type", "read_only": false, "required": true, "type": "select", "options_source": "financial_security_types"},
       {"name": "asset_class", "label_key": "label_asset_class", "read_only": false, "type": "select", "options_source": "asset_classes"},
       {"name": "previous_close", "label_key": "label_previous_close", "read_only": false},
       {"name": "open_price", "label_key": "label_open", "read_only": false},

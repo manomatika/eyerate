@@ -11,7 +11,7 @@ def test_duplicate_symbol_prevention(client, test_admin, db):
     data = {
         "symbol": "VOO",
         "name": "Vanguard S&P 500 ETF",
-        "security_type": SecurityType.ETF.value
+        "financial_security_type": SecurityType.ETF.value
     }
     resp = client.post("/eyerate/securities/create", data=data, follow_redirects=True)
     assert resp.status_code == 200
@@ -29,13 +29,13 @@ def test_symbol_case_insensitivity(client, test_admin, db):
     client.post("/eyerate/securities/create", data={
         "symbol": "AAPL",
         "name": "Apple Inc.",
-        "security_type": SecurityType.STOCK.value
+        "financial_security_type": SecurityType.STOCK.value
     })
-    
+
     # Try lowercase version
     resp = client.post("/eyerate/securities/create", data={
         "symbol": "aapl",
         "name": "Apple Inc. Duplicate",
-        "security_type": SecurityType.STOCK.value
+        "financial_security_type": SecurityType.STOCK.value
     })
     assert resp.status_code == 400
