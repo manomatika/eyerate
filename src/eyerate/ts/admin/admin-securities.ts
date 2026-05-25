@@ -1,5 +1,5 @@
-import { MaintenanceActivityManager, ActivityMetadata } from './maintenance_activity.js';
-import { LookupDialog, LookupResult } from './lookup_dialog.js';
+import { MaintenanceActivityManager, ActivityMetadata } from '@manomatika/matika-frontend';
+import { LookupDialog, LookupResult } from '../dialogs/lookup-dialog.js';
 
 class SecuritiesManager extends MaintenanceActivityManager {
     private lookupDialog: LookupDialog;
@@ -165,7 +165,7 @@ class SecuritiesManager extends MaintenanceActivityManager {
         const mapping: Record<string, any> = {
             'symbol': data.symbol,
             'name': data.name,
-            'security_type': data.security_type,
+            'financial_security_type': data.financial_security_type,
             'asset_class': data.asset_class,
             'previous_close': data.previous_close,
             'open_price': data.open_price,

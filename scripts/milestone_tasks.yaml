@@ -1,8 +1,45 @@
-milestone: "Milestone 2 - Refactor menu architecture"
-branch: "feat/milestone-2-menu-refactor"
-description: "Initial refactor of menu"
+milestone: "0.0.4 — Deployment and Install"
+version: "0.0.4_dev"
+branch: "feature/0.0.4-deployment-install"
+description: "EyeRate compatibility with Matika 0.0.4 deployment and install pipeline"
+
 issues:
-  - title: "Refactor menu architecture"
-    labels: ["feature", "milestone-2"]
-    description: |
-      Refactor menu architecture
+  - title: "feat: verify eyerate compatibility with Matika 0.0.4"
+    labels: ["feature"]
+    body: |
+      Verify eyerate works correctly with Matika 0.0.4 deployment
+      changes including the updated launcher.py, plugin extraction
+      to ~/Matika/plugins/, and frozen app context.
+      Update matika_version in applug.json to 0.0.4 when ready.
+
+  - title: "feat: verify eyerate assets bundle correctly in PyInstaller"
+    labels: ["feature"]
+    body: |
+      Verify that eyerate's templates/, static/, locales/ directories
+      are correctly bundled by the updated matika.spec.
+      Confirm plugin discovery works in frozen context.
+
+  - title: "qa: test eyerate Securities page in DMG install on macOS"
+    labels: ["qa"]
+    body: |
+      Manual QA on clean macOS install from DMG:
+      - Securities page loads correctly
+      - CRUD operations work
+      - Yahoo Finance data fetch works
+      - Permissions enforced correctly for Admin and User roles
+
+  - title: "qa: test eyerate Securities page in EXE install on Windows"
+    labels: ["qa"]
+    body: |
+      Manual QA on clean Windows 11 install from EXE:
+      - Same checklist as macOS QA test
+
+  - title: "docs: update DEVELOPER_GUIDE.md with *_menus.json schema"
+    labels: ["documentation"]
+    body: |
+      Document the consolidated *_menus.json schema:
+      - application section
+      - roles section with flat vs wrapped items
+      - Admin role items use flat Links (no Menu wrapper)
+      - User role items use Menu wrapper for dropdown behavior
+      - SectionHeader behavior in Admin dropdown

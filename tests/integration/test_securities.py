@@ -46,7 +46,7 @@ def test_securities_crud(client, test_admin, db):
     resp = client.post("/eyerate/securities/create", data={
         "symbol": "VOO",
         "name": "Vanguard S&P 500 ETF",
-        "security_type": SecurityType.ETF.value,
+        "financial_security_type": SecurityType.ETF.value,
         "asset_class": AssetClass.LARGE_CAP_STOCK.value,
         "current_price": "450.00"
     }, follow_redirects=False)
@@ -60,7 +60,7 @@ def test_securities_crud(client, test_admin, db):
     resp = client.post(f"/eyerate/securities/update/{sec.id}", data={
         "symbol": "VOO",
         "name": "Vanguard S&P 500 ETF Updated",
-        "security_type": SecurityType.ETF.value,
+        "financial_security_type": SecurityType.ETF.value,
         "asset_class": AssetClass.SMALL_CAP_STOCK.value,
         "current_price": "460.00"
     }, follow_redirects=False)

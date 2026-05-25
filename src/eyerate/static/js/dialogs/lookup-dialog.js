@@ -1,15 +1,5 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 export class LookupDialog {
     constructor() {
-        var _a;
         this.multiSelect = false;
         this.defaultChecked = true;
         this.statusTemplate = null;
@@ -29,7 +19,7 @@ export class LookupDialog {
         this.statusMessage.className = 'lookup-status-message';
         this.statusMessage.style.padding = '0 20px 10px';
         this.statusMessage.style.fontSize = '0.85em';
-        (_a = this.modal.querySelector('.modal-container')) === null || _a === void 0 ? void 0 : _a.insertBefore(this.statusMessage, this.modal.querySelector('.modal-footer'));
+        this.modal.querySelector('.modal-container')?.insertBefore(this.statusMessage, this.modal.querySelector('.modal-footer'));
         this.initEventListeners();
     }
     initEventListeners() {
@@ -64,73 +54,69 @@ export class LookupDialog {
             this.resolve = resolve;
         });
     }
-    handleSearch() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const rawQuery = this.searchInput.value.trim();
-            if (!rawQuery)
-                return;
-            this.statusMessage.textContent = '';
-            this.resultsList.innerHTML = '<tr><td colspan="3" style="padding: 15px;">Searching...</td></tr>';
-            let queries = [];
-            if (this.multiSelect) {
-                const seen = new Set();
-                queries = rawQuery.split(',').map(s => s.trim().toUpperCase()).filter(s => {
-                    if (!s)
-                        return false;
-                    if (seen.has(s))
-                        return false;
-                    seen.add(s);
-                    return true;
-                });
-                if (queries.length < rawQuery.split(',').length) {
-                    this.statusMessage.textContent = "Duplicate symbols detected and removed from list.";
-                    this.statusMessage.style.color = '#c60';
-                }
+    async handleSearch() {
+        const rawQuery = this.searchInput.value.trim();
+        if (!rawQuery)
+            return;
+        this.statusMessage.textContent = '';
+        this.resultsList.innerHTML = '<tr><td colspan="3" style="padding: 15px;">Searching...</td></tr>';
+        let queries = [];
+        if (this.multiSelect) {
+            const seen = new Set();
+            queries = rawQuery.split(',').map(s => s.trim().toUpperCase()).filter(s => {
+                if (!s)
+                    return false;
+                if (seen.has(s))
+                    return false;
+                seen.add(s);
+                return true;
+            });
+            if (queries.length < rawQuery.split(',').length) {
+                this.statusMessage.textContent = "Duplicate symbols detected and removed from list.";
+                this.statusMessage.style.color = '#c60';
             }
-            else {
-                queries = [rawQuery];
-            }
-            try {
-                const allResults = [];
-                const notFound = [];
-                for (const q of queries) {
-                    const results = yield this.performFetch(q);
-                    if (results.length > 0) {
-                        if (this.multiSelect) {
-                            const exact = results.find(r => r.symbol.toUpperCase() === q.toUpperCase());
-                            allResults.push(exact || results[0]);
-                        }
-                        else {
-                            allResults.push(...results);
-                        }
+        }
+        else {
+            queries = [rawQuery];
+        }
+        try {
+            const allResults = [];
+            const notFound = [];
+            for (const q of queries) {
+                const results = await this.performFetch(q);
+                if (results.length > 0) {
+                    if (this.multiSelect) {
+                        const exact = results.find(r => r.symbol.toUpperCase() === q.toUpperCase());
+                        allResults.push(exact || results[0]);
                     }
-                    else if (this.multiSelect) {
-                        notFound.push(q);
+                    else {
+                        allResults.push(...results);
                     }
                 }
-                if (this.multiSelect && notFound.length > 0) {
-                    const msg = `The following symbols entered: ${notFound.join(', ')} were not found.`;
-                    this.statusMessage.textContent = msg;
-                    this.statusMessage.style.color = '#c00';
+                else if (this.multiSelect) {
+                    notFound.push(q);
                 }
-                this.currentResults = allResults;
-                this.renderResults();
             }
-            catch (err) {
-                this.resultsList.innerHTML = `<tr><td colspan="3" style="padding: 15px; color: #c00;">Error: ${err.message}</td></tr>`;
+            if (this.multiSelect && notFound.length > 0) {
+                const msg = `The following symbols entered: ${notFound.join(', ')} were not found.`;
+                this.statusMessage.textContent = msg;
+                this.statusMessage.style.color = '#c00';
             }
-        });
+            this.currentResults = allResults;
+            this.renderResults();
+        }
+        catch (err) {
+            this.resultsList.innerHTML = `<tr><td colspan="3" style="padding: 15px; color: #c00;">Error: ${err.message}</td></tr>`;
+        }
     }
-    performFetch(q) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let resp = yield fetch(`/admin/securities/search?q=${encodeURIComponent(q)}`);
-            let data = yield resp.json();
-            if (data.length === 0 && !q.endsWith('*')) {
-                resp = yield fetch(`/admin/securities/search?q=${encodeURIComponent(q + '*')}`);
-                data = yield resp.json();
-            }
-            return data;
-        });
+    async performFetch(q) {
+        let resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q)}`);
+        let data = await resp.json();
+        if (data.length === 0 && !q.endsWith('*')) {
+            resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q + '*')}`);
+            data = await resp.json();
+        }
+        return data;
     }
     updateStatus() {
         if (this.statusTemplate) {

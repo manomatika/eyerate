@@ -55,7 +55,7 @@ def all_hrefs(hub: list) -> list:
 def test_eyerate_menus_json_is_valid():
     """eyerate_menus.json parses correctly and has the expected structure."""
     import os
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     with open(os.path.join(root, "eyerate_menus.json")) as f:
         data = json.load(f)
     assert data["schema_version"] == "1.0"
@@ -70,7 +70,7 @@ def test_eyerate_menus_json_is_valid():
 def test_eyerate_menus_json_user_role_links_securities():
     """User role entry in eyerate_menus.json links to /eyerate/securities."""
     import os
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     with open(os.path.join(root, "eyerate_menus.json")) as f:
         data = json.load(f)
     user_role = next(r for r in data["menus"]["roles"] if r["role"] == "User")
@@ -81,7 +81,7 @@ def test_eyerate_menus_json_user_role_links_securities():
 def test_eyerate_menus_json_admin_role_links_admin():
     """Admin role entry in eyerate_menus.json links to /eyerate/admin."""
     import os
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     with open(os.path.join(root, "eyerate_menus.json")) as f:
         data = json.load(f)
     admin_role = next(r for r in data["menus"]["roles"] if r["role"] == "Admin")
