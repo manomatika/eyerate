@@ -3,10 +3,12 @@
   "version": "0.0.4-dev",
   "private": true,
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@manomatika/matika-frontend": "0.0.4-dev.2",
+    "husky": "^9.1.7",
     "typescript": "^5.5.0"
   }
 }
