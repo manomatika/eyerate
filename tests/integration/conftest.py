@@ -74,15 +74,18 @@ def setup_database(setup_plugins):
     from eyerate.models import Base as EyeRateBase
     from matika_conftest import engine, TestingSessionLocal
 
-    # matika's conftest builds the test DATABASE_URL as an absolute SQLite
-    # path under ./data/ but does not create the directory. In a clean
-    # checkout (fresh clone, git worktree, or CI runner) that directory
-    # does not exist yet, so the first connection fails with
-    # "unable to open database file". Ensure it exists before any engine
-    # connect. The engine is lazy — SQLAlchemy opens the file on first
-    # connect, which happens just below in drop_all — so creating the dir
-    # here is in time. data/ is runtime-only and untracked, so the
-    # integration tier is the right place to guarantee it.
+    # WORKAROUND (remove once manomatika/matika#57 is merged and the local /
+    # CI matika checkout includes it): matika's conftest builds the test
+    # DATABASE_URL as an absolute SQLite path under ./data/ but historically
+    # did not create that directory. In a clean checkout (fresh clone, git
+    # worktree, or CI runner) the directory does not exist yet, so the first
+    # connection fails with "unable to open database file". The root cause is
+    # fixed in manomatika/matika#57 (os.makedirs in matika's own conftest);
+    # because the eyerate integration tier exec's matika's conftest from the
+    # local sibling clone, this workaround is still needed until that fix is
+    # present on the matika main that eyerate resolves. The engine is lazy —
+    # SQLAlchemy opens the file on first connect (just below in drop_all) — so
+    # creating the dir here is in time. data/ is runtime-only and untracked.
     os.makedirs("data", exist_ok=True)
 
     MatikaBase.metadata.drop_all(bind=engine)
