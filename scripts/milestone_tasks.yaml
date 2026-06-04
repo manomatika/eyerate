@@ -9,7 +9,7 @@ issues:
     body: |
       Verify eyerate works correctly with Matika 0.0.4 deployment
       changes including the updated launcher.py, plugin extraction
-      to ~/Matika/plugins/, and frozen app context.
+      to ~/matika/plugins/, and frozen app context.
       Update matika_version in applug.json to 0.0.4 when ready.
 
   - title: "feat: verify eyerate assets bundle correctly in PyInstaller"
