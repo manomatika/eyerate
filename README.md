@@ -2,7 +2,7 @@
 
 # EyeRate — Financial Security AppLug for Matika
 
-EyeRate is the **reference implementation** of a Matika [AppLug](https://github.com/manomatika/Matika) (plugin). It provides specialised functionality for tracking financial securities, fetching real-time market data, and calculating yields. It is not a standalone application — it runs inside a Matika host process.
+EyeRate is the **reference implementation** of a Matika [AppLug](https://github.com/manomatika/matika) (plugin). It provides specialised functionality for tracking financial securities, fetching real-time market data, and calculating yields. It is not a standalone application — it runs inside a Matika host process.
 
 ## Features
 
@@ -23,7 +23,7 @@ Clone matika and eyerate as siblings, then have matika create a symlink into its
 ```bash
 # 1. Clone eyerate alongside matika
 cd ~/dev/projects
-git clone https://github.com/manomatika/EyeRate.git eyerate
+git clone https://github.com/manomatika/eyerate.git eyerate
 
 # 2. Tell matika where the plugin lives (one-time per machine)
 cd matika
@@ -34,11 +34,11 @@ python scripts/dev_setup.py     # creates plugins/eyerate → ../eyerate symlink
 
 `scripts/dev_setup.py` is idempotent and validates each path contains `applug.json` and a `*_menus.json` (plural — the consolidated AppLug menu format) before creating the symlink.
 
-For the full cold-start sequence (venv activation, env vars, server launch, browser test URL), see matika's [DEVELOPER_GUIDE.md](https://github.com/manomatika/Matika/blob/main/docs/DEVELOPER_GUIDE.md).
+For the full cold-start sequence (venv activation, env vars, server launch, browser test URL), see matika's [DEVELOPER_GUIDE.md](https://github.com/manomatika/matika/blob/main/docs/DEVELOPER_GUIDE.md).
 
 ### Production deployment
 
-Set `MATIKA_PLUGINS_DIR` in the server's environment to a directory outside the core repository that contains your licensed AppLugs (each as a subdirectory). Matika picks this up at startup. See matika's [DEPLOYMENT.md](https://github.com/manomatika/Matika/blob/main/docs/DEPLOYMENT.md) for the full operator guide.
+Set `MATIKA_PLUGINS_DIR` in the server's environment to a directory outside the core repository that contains your licensed AppLugs (each as a subdirectory). Matika picks this up at startup. See matika's [DEPLOYMENT.md](https://github.com/manomatika/matika/blob/main/docs/DEPLOYMENT.md) for the full operator guide.
 
 ### End-user installer (future)
 
