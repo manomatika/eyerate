@@ -191,6 +191,12 @@ The integration conftest is loaded only when pytest collects tests under `tests/
 - If matika's `VERSION` is unavailable (sibling clone absent and env var unset), `sync_version.py` exits 2 with a clear error. This is a hard error, not a warning — eyerate cannot be drift-checked or released without matika's version.
 - `scripts/sync_version.py --check` runs in read-only drift detection mode. Exits 0 (clean), 1 (drift), 2 (configuration error). Human drift output uses double quotes around values (e.g. `DRIFT  applug.json: expected version "0.0.4", found "0.0.3"`). `--check --json` produces structured output: `{"version": "...", "drift": [{"path": "...", "field": "version"|"matika_version", "expected": "...", "found": "..."}]}`. Each drifted field in `applug.json` appears as a separate drift entry. An empty `drift` array (`[]`) means clean.
 
+### GitHub Release notes (notes-only)
+
+eyerate has a tag-triggered release job (`.github/workflows/release.yml`, triggers on `v*.*.*` / `v*.*.*-*`, `contents: write`) that creates a GitHub Release whose body is read from `docs/release-notes/<tag>.md`. eyerate has **no installer artifacts of its own** — the DMG/EXE are built by ahimsa and attached to ahimsa's release; eyerate's notes **link to ahimsa's release**. If no per-tag notes file exists, a minimal body is auto-generated (Q3 fallback). Author `docs/release-notes/<tag>.md` in the same PR that finalizes the version.
+
+The ecosystem-wide release log (`RELEASES.md`) lives in **manomatika/ahimsa** and is generated from `release-log.yaml`; eyerate's tag entries are records in that file (keyed `repo: eyerate`). eyerate has no `RELEASES.md` of its own.
+
 ## Test Layout
 
 Three buckets, separated by directory. Tier isolation is enforced by directory layout — the parent conftest cannot accidentally pull stack code into the scripts tier.
@@ -200,6 +206,16 @@ Three buckets, separated by directory. Tier isolation is enforced by directory l
 - `tests/scripts/` — stack-independent unit tests for the `scripts/` directory and other infrastructure (release tooling, drift detection, static-asset layout). Runs without venv, without sqlalchemy, without any `eyerate.*` or `matika.*` runtime imports. **Has no `conftest.py` of its own** — inherits only from the minimal parent. Tests that need optional deps (e.g. fastapi for the static-asset regression test) use `pytest.importorskip` to gracefully degrade in minimal environments.
 
 The tier separation is enforced by directory structure. Do not collapse back to a single conftest. When adding a test, choose the bucket by what it actually imports: any `eyerate.*` / `matika.*` runtime import → `tests/integration/`. No such import → `tests/scripts/`.
+
+**Running the suite — environment matters.** The full suite is green on main (`56 passed`), but the `tests/integration/` tier `exec_module`s matika's `conftest.py` resolved via a **sibling-clone relative path** (`../../../matika/tests/conftest.py` from `tests/integration/`). It only resolves when eyerate's checkout/worktree sits beside the matika clone (`~/dev/projects/eyerate` next to `~/dev/projects/matika`) **and** `PYTHONPATH` includes `../matika/src`. Run with:
+```bash
+export SECRET_KEY="test-only-secret-key-never-use-in-production"
+export PYTHONPATH=src:../matika/src
+python -m pytest tests/        # 56 passed
+```
+Running the integration tier from a worktree that is NOT a matika sibling (e.g. under `/tmp`) makes that exec path 404 → **all integration tests ERROR at collection** (not a real failure — a setup artifact). If you see "N errors" in the integration tier, check your CWD/sibling layout before assuming a regression.
+
+**CI gate gap (flagged).** eyerate's only PR-triggered workflow is `check-compiled-assets.yml` (TS staleness) — there is **no PR-triggered Python test gate**. The pytest suite runs only locally. A real Python regression could merge unnoticed; per the standing "all tests pass" rule, run the full suite locally before merging, and adding a Python-test CI job is a worthwhile hardening (see plan §6).
 
 ## Standing Rules
 
