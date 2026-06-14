@@ -39,7 +39,7 @@ CLAUDE.md must never knowingly contain stale information. Whenever CLAUDE.md is 
 ### Repository ecosystem
 
 - **manomatika** is the GitHub org. The shipped PRODUCT is **ManoMatika** — a pinned *triple* of component versions (matika + eyerate + ahimsa), blessed by a single product release. The repos:
-  - **manomatika/manomatika** — PRODUCT AUTHORITY (being created separately). Owns the recipes, the audit log (`release-log.yaml` + `RELEASES.md`), the product release + single hosted installer binary, cross-component umbrella docs, the per-version manifest/BOM (pins each component by tag AND resolved SHA), and the QA gate.
+  - **manomatika/manomatika** — PRODUCT AUTHORITY. Owns the recipes, the audit log (`release-log.yaml` + `RELEASES.md`), the product release + single hosted installer binary, cross-component umbrella docs, the per-version manifest/BOM (pins each component by tag AND resolved SHA), and the QA gate.
   - **manomatika/matika** — the framework (plugin-agnostic FastAPI host). Component; notes-only releases.
   - **manomatika/eyerate** — the reference AppLug (financial security tracking). **This repo.** A component with self-scoped architecture docs and notes-only GitHub releases (no installer binaries).
   - **manomatika/ahimsa** — the recipe ENGINE: build / validation / release *mechanism* + recipe *schema*. Owns no recipes, no audit-log content, and hosts no product releases of its own.
@@ -198,9 +198,9 @@ The integration conftest is loaded only when pytest collects tests under `tests/
 
 ### GitHub Release notes (notes-only)
 
-eyerate has a tag-triggered release job (`.github/workflows/release.yml`, triggers on `v*.*.*` / `v*.*.*-*`, `contents: write`) that creates a GitHub Release whose body is read from `docs/release-notes/<tag>.md`, with a minimal auto-generated fallback body if no per-tag file exists (Q3 fallback). eyerate ships **no installer artifacts of its own** — the DMG/EXE are built by the ahimsa engine, and the single hosted installer lives on the **manomatika/manomatika** product release; eyerate's notes link to it. **Current divergence:** the installer is still attached to an ahimsa release by ahimsa's `build.yml` pending migration. Author `docs/release-notes/<tag>.md` in the same PR that finalizes the version.
+eyerate has a tag-triggered release job (`.github/workflows/release.yml`, triggers on `v*.*.*` / `v*.*.*-*`, `contents: write`) that creates a GitHub Release whose body is read from `docs/release-notes/<tag>.md`, with a minimal auto-generated fallback body if no per-tag file exists (Q3 fallback). eyerate ships **no installer artifacts of its own** — the DMG/EXE are built by the ahimsa engine, and the single hosted installer lives on the **manomatika/manomatika** product release; eyerate's notes link to it. Author `docs/release-notes/<tag>.md` in the same PR that finalizes the version.
 
-The ecosystem-wide release log (`RELEASES.md`, generated from `release-log.yaml`) is owned by **manomatika/manomatika** in the target model; **current divergence:** both files still live in **manomatika/ahimsa** pending migration. eyerate's tag entries are records in that file (keyed `repo: eyerate`). eyerate has no `RELEASES.md` of its own.
+The ecosystem-wide release log (`RELEASES.md`, generated from `release-log.yaml`) lives in **manomatika/manomatika**. eyerate's tag entries are records in that file (keyed `repo: eyerate`). eyerate has no `RELEASES.md` of its own.
 
 ## Test Layout
 
