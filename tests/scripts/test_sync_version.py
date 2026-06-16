@@ -364,3 +364,152 @@ def test_drift_check_fails_when_version_has_rc_suffix(tmp_path):
     run_sync(root, mroot)
     with pytest.raises(SystemExit):
         run_drift_check(root, mroot, "0.0.4", "0.0.4")
+
+
+# ---------------------------------------------------------------------------
+# RULE A — strict SemVer parsing (mirrors matika.core.paths._parse_semver)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "raw,core",
+    [
+        ("0.0.4", "0.0.4"),                  # final: unchanged
+        ("0.0.4-dev", "0.0.4"),              # dev pre-release
+        ("0.0.4-rc.1", "0.0.4"),             # rc pre-release
+        ("v0.0.4-rc.1", "0.0.4"),            # tolerated leading "v"
+        ("0.0.4+build.5", "0.0.4"),          # build metadata only
+        ("0.0.4-rc.1+build.5", "0.0.4"),     # pre-release AND build metadata
+        ("1.2.3-alpha-1", "1.2.3"),          # pre-release identifier with hyphen
+    ],
+)
+def test_strip_to_core_valid(raw, core):
+    assert sync_version.strip_to_core(raw) == core
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "",            # empty
+        "unknown",     # non-numeric sentinel
+        "1.2",         # too few components
+        "1.2.3.4",     # too many components
+        "01.2.3",      # leading zero in MAJOR
+        "1.2.x",       # non-numeric PATCH
+        "abc",         # not a version at all
+        "1.2.3-",      # empty pre-release
+    ],
+)
+def test_strip_to_core_raises_on_invalid(raw):
+    with pytest.raises(ValueError) as exc_info:
+        sync_version.strip_to_core(raw)
+    # Error message must NAME the offending value.
+    assert repr(raw) in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# RULE A — pre-release check (is_prerelease, built on the same parser)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "raw",
+    ["0.0.4-dev", "0.0.4-rc.1", "0.0.4-rc.2", "0.0.4-rc.1+build", "1.2.3-alpha-1"],
+)
+def test_is_prerelease_true(raw):
+    assert sync_version.is_prerelease(raw) is True
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["0.0.4", "v0.0.4", "1.2.3", "0.0.4+build", "0.0.4+build.5"],
+)
+def test_is_prerelease_false(raw):
+    # Bare core and build-metadata-only are NOT pre-releases.
+    assert sync_version.is_prerelease(raw) is False
+
+
+@pytest.mark.parametrize("raw", ["", "unknown", "1.2", "01.2.3", "1.2.3-"])
+def test_is_prerelease_raises_on_invalid(raw):
+    with pytest.raises(ValueError) as exc_info:
+        sync_version.is_prerelease(raw)
+    assert repr(raw) in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# RULE B — version-source error handling (full context, no sentinels)
+# ---------------------------------------------------------------------------
+
+def test_read_version_raises_with_context_on_malformed(tmp_path, capsys):
+    """A malformed eyerate VERSION exits naming the file, bad value, expected shape."""
+    root, mroot = make_tree(tmp_path, "not-a-version")
+    with pytest.raises(SystemExit) as exc_info:
+        with patched(root, mroot):
+            sync_version.read_version()
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "eyerate VERSION file" in err          # which source
+    assert str(root / "VERSION") in err            # the file path
+    assert "'not-a-version'" in err                # the bad value
+    assert "MAJOR.MINOR.PATCH" in err              # expected shape
+
+
+def test_read_version_raises_with_context_on_missing(tmp_path, capsys):
+    """A missing eyerate VERSION exits naming the file path."""
+    root, mroot = make_tree(tmp_path, "0.0.4-dev")
+    (root / "VERSION").unlink()
+    with pytest.raises(SystemExit) as exc_info:
+        with patched(root, mroot):
+            sync_version.read_version()
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "eyerate VERSION file missing or unreadable" in err
+    assert str(root / "VERSION") in err
+
+
+def test_matika_version_raises_with_context_on_malformed_file(tmp_path, capsys):
+    """A malformed matika VERSION (sibling clone) exits with full context."""
+    root, mroot = make_tree(tmp_path, "0.0.4-dev", matika_version="garbage")
+    with pytest.raises(SystemExit) as exc_info:
+        with patched(root, mroot):
+            sync_version.read_matika_version()
+    assert exc_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "matika VERSION file" in err            # which source
+    assert str(mroot / "VERSION") in err           # the file path
+    assert "'garbage'" in err                      # the bad value
+    assert "MAJOR.MINOR.PATCH" in err              # expected shape
+
+
+def test_matika_version_raises_with_context_on_malformed_env(tmp_path, monkeypatch, capsys):
+    """A malformed MATIKA_VERSION env value exits with full context."""
+    root, mroot = make_tree(tmp_path, "0.0.4-dev")
+    (mroot / "VERSION").unlink()
+    monkeypatch.setenv("MATIKA_VERSION", "1.2")    # too few components
+    with pytest.raises(SystemExit) as exc_info:
+        with patched(root, mroot):
+            sync_version.read_matika_version()
+    assert exc_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "MATIKA_VERSION environment variable" in err   # which source
+    assert "'1.2'" in err                                 # the bad value
+    assert "MAJOR.MINOR.PATCH" in err                     # expected shape
+
+
+def test_matika_version_env_tolerates_leading_v(tmp_path, monkeypatch):
+    """The MATIKA_VERSION env path tolerates a single leading 'v' via the parser."""
+    root, mroot = make_tree(tmp_path, "0.0.4-dev")
+    (mroot / "VERSION").unlink()
+    monkeypatch.setenv("MATIKA_VERSION", "v0.0.4-rc.1")
+    with patched(root, mroot):
+        assert sync_version.read_matika_version() == "0.0.4"
+
+
+def test_drift_check_raises_with_context_on_malformed_version(tmp_path, capsys):
+    """drift_check surfaces a malformed VERSION with full context."""
+    root, mroot = make_tree(tmp_path, "0.0.4-dev")
+    run_sync(root, mroot)
+    (root / "VERSION").write_text("nope\n")
+    with pytest.raises(SystemExit):
+        run_drift_check(root, mroot, "0.0.4", "0.0.4")
+    err = capsys.readouterr().err
+    assert "invalid" in err
+    assert "'nope'" in err

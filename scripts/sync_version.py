@@ -37,6 +37,7 @@ Usage:
 import argparse
 import json
 import os
+import re as _re
 import sys
 from pathlib import Path
 
@@ -52,36 +53,163 @@ SYNC_TARGETS: list[tuple[str, str]] = [
 ]
 
 
-def strip_to_core(version: str) -> str:
-    """Return the bare version CORE (X.Y.Z): everything before the first "-".
+# ===========================================================================
+# CANONICAL SEMVER PARSER
+#
+# _parse_semver is the SINGLE strict SemVer 2.0.0 parser for this script.
+# strip_to_core() and is_prerelease() both build on it so there is exactly ONE
+# parser. sync_version.py cannot import the installed matika package, so this
+# parser is an IDENTICAL, verbatim copy of matika.core.paths._parse_semver
+# (same parse rules, same error-message shape). Any change to matika's parser
+# MUST be mirrored here. matika's own scripts/sync_version.py mirrors the same
+# block for its build/release tooling.
+# ===========================================================================
 
-    The single shared "strip to core" helper. A pre-release suffix (-dev,
-    -rc.N) is everything from the first "-" onward; this drops it. A version
-    with no suffix is returned unchanged. This is the canonical identity used
-    for ALL comparison, artifact naming, and manifest/installer embedding.
+# MAJOR.MINOR.PATCH: each a non-negative integer with NO leading zeros.
+_SEMVER_CORE = r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
+# A pre-release identifier: numeric (no leading zeros) OR alphanumeric-with-hyphen.
+_SEMVER_PRE_IDENT = r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
+# Dot-separated pre-release identifiers, after the first '-'.
+_SEMVER_PRERELEASE = rf"(?:{_SEMVER_PRE_IDENT}(?:\.{_SEMVER_PRE_IDENT})*)"
+# Build metadata: dot-separated alphanumeric-with-hyphen identifiers, after '+'.
+_SEMVER_BUILD = r"(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)"
+
+_SEMVER_RE = _re.compile(
+    rf"^(?P<core>{_SEMVER_CORE})"
+    rf"(?:-(?P<prerelease>{_SEMVER_PRERELEASE}))?"
+    rf"(?:\+(?P<build>{_SEMVER_BUILD}))?$"
+)
+
+
+def _parse_semver(raw):
+    """Strictly parse a SemVer 2.0.0 string of the form
+    ``[v]MAJOR.MINOR.PATCH[-prerelease][+build]``.
+
+    A single optional leading 'v' is tolerated and stripped. MAJOR/MINOR/PATCH
+    are non-negative integers with no leading zeros (so '01.2.3' is invalid),
+    exactly three of them. Pre-release identifiers are dot-separated; numeric
+    identifiers carry no leading zeros; identifiers are alphanumerics and hyphens
+    (so a pre-release identifier MAY contain hyphens, e.g. 'alpha-1'). Build
+    metadata after '+' is NOT part of the core and is NOT a pre-release signal.
+    An empty pre-release ('1.2.3-') or empty build is invalid.
+
+    Returns ``(core, prerelease, build)`` where prerelease/build are the
+    substrings after '-'/'+' or None when absent. Raises ValueError naming the
+    offending value and the expected shape on any invalid input.
     """
-    return version.split("-", 1)[0]
+    if not isinstance(raw, str):
+        raise ValueError(
+            f"invalid version {raw!r}: expected a string of the form "
+            f"[v]MAJOR.MINOR.PATCH[-prerelease][+build]"
+        )
+    candidate = raw.strip()
+    if candidate.startswith("v"):
+        candidate = candidate[1:]
+    m = _SEMVER_RE.match(candidate)
+    if not m:
+        raise ValueError(
+            f"invalid version {raw!r}: expected SemVer of the form "
+            f"[v]MAJOR.MINOR.PATCH[-prerelease][+build] "
+            f"(three dot-separated non-negative integers without leading zeros, "
+            f"optional pre-release and build metadata)"
+        )
+    return m.group("core"), m.group("prerelease"), m.group("build")
+
+
+def strip_to_core(version: str) -> str:
+    """Return the bare MAJOR.MINOR.PATCH core of a SemVer string.
+
+    The single shared "strip to core" helper, built on the canonical
+    _parse_semver. A pre-release suffix (-dev, -rc.N) and build metadata (+...)
+    are dropped; a bare core is returned unchanged. This is the canonical
+    identity used for ALL comparison, artifact naming, and manifest/installer
+    embedding (applug.json "version" + "matika_version").
+
+    Examples:
+      "0.0.4-dev"        -> "0.0.4"
+      "0.0.4-rc.1"       -> "0.0.4"
+      "v0.0.4-rc.1"      -> "0.0.4"
+      "0.0.4+build.5"    -> "0.0.4"
+      "1.2.3-alpha-1"    -> "1.2.3"
+      "0.0.4"            -> "0.0.4"
+
+    Raises ValueError (naming the offending value) on any non-SemVer input.
+    """
+    core, _prerelease, _build = _parse_semver(version)
+    return core
+
+
+def is_prerelease(version: str) -> bool:
+    """True iff a SemVer string carries a pre-release component.
+
+    Build metadata alone (e.g. ``0.0.4+build``) is NOT a pre-release. Raises
+    ValueError (naming the offending value) on any non-SemVer input.
+    """
+    _core, prerelease, _build = _parse_semver(version)
+    return prerelease is not None
 
 
 def read_version() -> tuple[str, str]:
-    """Return (raw, clean) for eyerate's VERSION. clean is the bare core."""
+    """Return (raw, clean) for eyerate's VERSION. clean is the bare core.
+
+    RULE B: a missing/unreadable/malformed VERSION raises with full context —
+    WHICH file, the bad value, and the expected shape. There is NO "unknown"
+    sentinel and no silent garbage propagation: an invalid VERSION is a serious
+    bug and must surface at its real source.
+    """
     version_file = REPO_ROOT / "VERSION"
-    if not version_file.exists():
-        print("ERROR: VERSION file not found", file=sys.stderr)
+    try:
+        raw = version_file.read_text().strip()
+    except OSError as exc:
+        print(
+            f"ERROR: eyerate VERSION file missing or unreadable at "
+            f"{version_file}: {exc}",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    raw = version_file.read_text().strip()
-    clean = strip_to_core(raw)
+    try:
+        clean = strip_to_core(raw)
+    except ValueError as exc:
+        print(
+            f"ERROR: eyerate VERSION file {version_file} holds an invalid "
+            f"version: {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     return raw, clean
 
 
 def _try_read_matika_version() -> str | None:
-    """Return clean matika version, or None if unavailable (no exit)."""
+    """Return clean matika version, or None if no source is available (no exit).
+
+    RULE B: a source that EXISTS but holds a malformed value raises with full
+    context (WHICH source, the bad value, the expected shape) rather than being
+    treated as "unavailable" — only a genuinely absent source returns None so
+    the caller can emit its configuration-error guidance.
+    """
     matika_version_file = MATIKA_REPO_ROOT / "VERSION"
     if matika_version_file.exists():
-        return strip_to_core(matika_version_file.read_text().strip())
-    env_val = os.environ.get("MATIKA_VERSION", "").strip().lstrip("v")
+        raw = matika_version_file.read_text().strip()
+        try:
+            return strip_to_core(raw)
+        except ValueError as exc:
+            print(
+                f"ERROR: matika VERSION file {matika_version_file} holds an "
+                f"invalid version: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+    env_val = os.environ.get("MATIKA_VERSION", "").strip()
     if env_val:
-        return strip_to_core(env_val)
+        try:
+            return strip_to_core(env_val)
+        except ValueError as exc:
+            print(
+                f"ERROR: MATIKA_VERSION environment variable holds an invalid "
+                f"version: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
     return None
 
 
@@ -201,8 +329,25 @@ def drift_check(expected_version: str, expected_matika_version: str) -> None:
     calling this directly. This function is retained for standalone use.
     """
     version_file = REPO_ROOT / "VERSION"
-    raw = version_file.read_text().strip()
-    if "-" in raw:
+    try:
+        raw = version_file.read_text().strip()
+    except OSError as exc:
+        print(
+            f"DRIFT: eyerate VERSION file missing or unreadable at "
+            f"{version_file}: {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    try:
+        prerelease = is_prerelease(raw)
+    except ValueError as exc:
+        print(
+            f"DRIFT: eyerate VERSION file {version_file} holds an invalid "
+            f"version: {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if prerelease:
         print(
             f"DRIFT: VERSION is {raw!r} — pre-release suffix must be removed "
             "before drift check",

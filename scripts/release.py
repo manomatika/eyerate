@@ -31,7 +31,6 @@ Usage:
   python scripts/release.py v0.0.4-dev      # dev pre-release
 """
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -44,10 +43,6 @@ from sync_version import (  # noqa: E402
     strip_to_core,
     sync,
 )
-
-# Accepts a bare core (X.Y.Z) or a core plus a SemVer pre-release suffix
-# (-dev, -rc.N, or any -<identifier>). The leading "v" is stripped before match.
-VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 
 
 def _run(cmd: list[str]) -> str:
@@ -63,15 +58,17 @@ def main() -> None:
         print("Usage: python scripts/release.py <version>  (e.g. v0.0.4 or 0.0.4)")
         sys.exit(1)
 
-    target = sys.argv[1].lstrip("v")
-    if not VERSION_RE.match(target):
-        print(
-            f"ERROR: {sys.argv[1]!r} is not a valid version "
-            "(expected X.Y.Z, X.Y.Z-dev, or X.Y.Z-rc.N, with optional leading v)"
-        )
+    # Validate the requested version through the canonical SemVer parser
+    # (strip_to_core raises ValueError naming the bad value on invalid input).
+    # A single leading "v" is tolerated by the parser; strip it from the stored
+    # target string so VERSION/tags hold the bare form.
+    raw_target = sys.argv[1]
+    try:
+        target_core = strip_to_core(raw_target)
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
         sys.exit(1)
-
-    target_core = strip_to_core(target)
+    target = raw_target[1:] if raw_target.startswith("v") else raw_target
 
     # 1. Verify current VERSION shares the target's CORE. The pre-release suffix
     #    on either side is a human/audit marker and is ignored for this match.
