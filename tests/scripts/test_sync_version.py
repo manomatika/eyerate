@@ -323,7 +323,7 @@ def test_drift_line_uses_double_quotes(tmp_path, capsys):
 
 
 # ---------------------------------------------------------------------------
-# strip_to_core helper + pre-release ladder (-dev, -rc.N)
+# version_core helper + pre-release ladder (-dev, -rc.N)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
@@ -336,8 +336,8 @@ def test_drift_line_uses_double_quotes(tmp_path, capsys):
         ("1.2.3-alpha.1+build", "1.2.3"),  # any suffix → first "-" onward dropped
     ],
 )
-def test_strip_to_core(raw, core):
-    assert sync_version.strip_to_core(raw) == core
+def test_version_core(raw, core):
+    assert sync_version.version_core(raw) == core
 
 
 def test_rc_version_stripped_to_core_in_applug(tmp_path):
@@ -382,8 +382,8 @@ def test_drift_check_fails_when_version_has_rc_suffix(tmp_path):
         ("1.2.3-alpha-1", "1.2.3"),          # pre-release identifier with hyphen
     ],
 )
-def test_strip_to_core_valid(raw, core):
-    assert sync_version.strip_to_core(raw) == core
+def test_version_core_valid(raw, core):
+    assert sync_version.version_core(raw) == core
 
 
 @pytest.mark.parametrize(
@@ -399,9 +399,9 @@ def test_strip_to_core_valid(raw, core):
         "1.2.3-",      # empty pre-release
     ],
 )
-def test_strip_to_core_raises_on_invalid(raw):
+def test_version_core_raises_on_invalid(raw):
     with pytest.raises(ValueError) as exc_info:
-        sync_version.strip_to_core(raw)
+        sync_version.version_core(raw)
     # Error message must NAME the offending value.
     assert repr(raw) in str(exc_info.value)
 

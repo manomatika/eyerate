@@ -40,7 +40,7 @@ from sync_version import (  # noqa: E402
     REPO_ROOT,
     read_matika_version,
     read_version,
-    strip_to_core,
+    version_core,
     sync,
 )
 
@@ -59,12 +59,12 @@ def main() -> None:
         sys.exit(1)
 
     # Validate the requested version through the canonical SemVer parser
-    # (strip_to_core raises ValueError naming the bad value on invalid input).
+    # (version_core raises ValueError naming the bad value on invalid input).
     # A single leading "v" is tolerated by the parser; strip it from the stored
     # target string so VERSION/tags hold the bare form.
     raw_target = sys.argv[1]
     try:
-        target_core = strip_to_core(raw_target)
+        target_core = version_core(raw_target)
     except ValueError as exc:
         print(f"ERROR: {exc}")
         sys.exit(1)

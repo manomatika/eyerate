@@ -14,7 +14,7 @@ file string, git tags, GitHub release titles/bodies, the audit log.
 
 Anything that COMPARES versions, NAMES an artifact, or EMBEDS a version into a
 manifest/installer field must strip to BARE CORE first: everything before the
-first "-" (see strip_to_core). applug.json "version" and "matika_version" are
+first "-" (see version_core). applug.json "version" and "matika_version" are
 manifest pins consumed by ahimsa's resolver cross-check, so they ALWAYS hold
 bare core — never a pre-release suffix. matika_version is the matika FRAMEWORK
 compatibility pin; the name is intentional and is not renamed.
@@ -57,7 +57,7 @@ SYNC_TARGETS: list[tuple[str, str]] = [
 # CANONICAL SEMVER PARSER
 #
 # _parse_semver is the SINGLE strict SemVer 2.0.0 parser for this script.
-# strip_to_core() and is_prerelease() both build on it so there is exactly ONE
+# version_core() and is_prerelease() both build on it so there is exactly ONE
 # parser. sync_version.py cannot import the installed matika package, so this
 # parser is an IDENTICAL, verbatim copy of matika.core.paths._parse_semver
 # (same parse rules, same error-message shape). Any change to matika's parser
@@ -116,7 +116,7 @@ def _parse_semver(raw):
     return m.group("core"), m.group("prerelease"), m.group("build")
 
 
-def strip_to_core(version: str) -> str:
+def version_core(version: str) -> str:
     """Return the bare MAJOR.MINOR.PATCH core of a SemVer string.
 
     The single shared "strip to core" helper, built on the canonical
@@ -168,7 +168,7 @@ def read_version() -> tuple[str, str]:
         )
         sys.exit(1)
     try:
-        clean = strip_to_core(raw)
+        clean = version_core(raw)
     except ValueError as exc:
         print(
             f"ERROR: eyerate VERSION file {version_file} holds an invalid "
@@ -191,7 +191,7 @@ def _try_read_matika_version() -> str | None:
     if matika_version_file.exists():
         raw = matika_version_file.read_text().strip()
         try:
-            return strip_to_core(raw)
+            return version_core(raw)
         except ValueError as exc:
             print(
                 f"ERROR: matika VERSION file {matika_version_file} holds an "
@@ -202,7 +202,7 @@ def _try_read_matika_version() -> str | None:
     env_val = os.environ.get("MATIKA_VERSION", "").strip()
     if env_val:
         try:
-            return strip_to_core(env_val)
+            return version_core(env_val)
         except ValueError as exc:
             print(
                 f"ERROR: MATIKA_VERSION environment variable holds an invalid "
