@@ -20,7 +20,7 @@ issues defined in milestone_tasks.yaml.
 ### Instructions:
 1. Update milestone_tasks.yaml:
    - Set the milestone name
-   - Set the version (e.g. 0.0.4_dev)
+   - Set the version (e.g. 0.0.4-dev)
    - Set the branch name
    - Update the description
    - List all issues with title, labels, and body

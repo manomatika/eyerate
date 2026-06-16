@@ -1,5 +1,5 @@
 milestone: "0.0.4 — Deployment and Install"
-version: "0.0.4_dev"
+version: "0.0.4-dev"
 branch: "feature/0.0.4-deployment-install"
 description: "EyeRate compatibility with Matika 0.0.4 deployment and install pipeline"
 

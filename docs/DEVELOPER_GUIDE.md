@@ -233,7 +233,8 @@ Bulk JSON-body routes (`bulk_create`, `bulk_delete`) use `check_page_permission`
 See `CLAUDE.md` for the full release procedure. Key points:
 
 - `VERSION` is the single source of truth. Never edit `applug.json` version fields by hand.
-- `scripts/release.py <version>` strips `_dev`, propagates into `applug.json`, and commits. Does not push or tag.
+- A version is a **core** (`X.Y.Z`) plus an optional pre-release suffix on the ladder `X.Y.Z-dev < X.Y.Z-rc.N < X.Y.Z`. The suffix lives only on `VERSION`, tags, and release titles; manifest fields hold **bare core** (everything before the first `-`).
+- `scripts/release.py <version>` accepts a final core or a pre-release target (`0.0.4-rc.1`, `0.0.4-dev`), propagates the bare core into `applug.json`, and commits. Does not push or tag.
 - `scripts/sync_version.py --check` verifies no drift between `VERSION` and `applug.json`.
 
 ---

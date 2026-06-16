@@ -6,8 +6,20 @@ Propagation targets (allowlist):
   applug.json  — "version"        (from eyerate's own VERSION file)
   applug.json  — "matika_version" (from matika's VERSION file)
 
-Both VERSION files may carry a _dev suffix (e.g. "0.0.4_dev"). That suffix is
-stripped before propagation so all targets always hold a clean X.Y.Z string.
+Version CORE vs PRE-RELEASE SUFFIX
+----------------------------------
+A version is CORE (X.Y.Z) plus an optional SemVer-valid PRE-RELEASE SUFFIX
+(-dev, -rc.N). The suffix lives only on human/audit surfaces — the VERSION
+file string, git tags, GitHub release titles/bodies, the audit log.
+
+Anything that COMPARES versions, NAMES an artifact, or EMBEDS a version into a
+manifest/installer field must strip to BARE CORE first: everything before the
+first "-" (see strip_to_core). applug.json "version" and "matika_version" are
+manifest pins consumed by ahimsa's resolver cross-check, so they ALWAYS hold
+bare core — never a pre-release suffix. matika_version is the matika FRAMEWORK
+compatibility pin; the name is intentional and is not renamed.
+
+Supported pre-release ladder: X.Y.Z-dev < X.Y.Z-rc.N < X.Y.Z (final).
 VERSION files themselves are never modified by this script.
 
 matika_version source (checked in priority order):
@@ -40,14 +52,25 @@ SYNC_TARGETS: list[tuple[str, str]] = [
 ]
 
 
+def strip_to_core(version: str) -> str:
+    """Return the bare version CORE (X.Y.Z): everything before the first "-".
+
+    The single shared "strip to core" helper. A pre-release suffix (-dev,
+    -rc.N) is everything from the first "-" onward; this drops it. A version
+    with no suffix is returned unchanged. This is the canonical identity used
+    for ALL comparison, artifact naming, and manifest/installer embedding.
+    """
+    return version.split("-", 1)[0]
+
+
 def read_version() -> tuple[str, str]:
-    """Return (raw, clean) for eyerate's VERSION. clean has _dev stripped."""
+    """Return (raw, clean) for eyerate's VERSION. clean is the bare core."""
     version_file = REPO_ROOT / "VERSION"
     if not version_file.exists():
         print("ERROR: VERSION file not found", file=sys.stderr)
         sys.exit(1)
     raw = version_file.read_text().strip()
-    clean = raw.removesuffix("_dev")
+    clean = strip_to_core(raw)
     return raw, clean
 
 
@@ -55,10 +78,10 @@ def _try_read_matika_version() -> str | None:
     """Return clean matika version, or None if unavailable (no exit)."""
     matika_version_file = MATIKA_REPO_ROOT / "VERSION"
     if matika_version_file.exists():
-        return matika_version_file.read_text().strip().removesuffix("_dev")
+        return strip_to_core(matika_version_file.read_text().strip())
     env_val = os.environ.get("MATIKA_VERSION", "").strip().lstrip("v")
     if env_val:
-        return env_val.removesuffix("_dev")
+        return strip_to_core(env_val)
     return None
 
 
@@ -96,8 +119,9 @@ def sync(check_only: bool = False, quiet: bool = False) -> list:
 
     Exits 2 (configuration error) if matika's VERSION is unavailable in either
     mode — a check that silently skips matika_version is dangerously incomplete.
-    In check mode VERSION may carry _dev; the stripped value is what targets
-    are compared against (same as propagation — no special failure for _dev).
+    In check mode VERSION may carry a pre-release suffix (-dev, -rc.N); the
+    bare core is what targets are compared against (same as propagation — no
+    special failure for a pre-release suffix).
     """
     raw, clean = read_version()
     matika_version: str = read_matika_version()  # exits 2 if unavailable
@@ -168,17 +192,20 @@ def sync(check_only: bool = False, quiet: bool = False) -> list:
 
 def drift_check(expected_version: str, expected_matika_version: str) -> None:
     """
-    Verify applug.json holds exactly expected_version and expected_matika_version.
-    Exit 1 on any mismatch. Also fails if eyerate VERSION still carries _dev.
+    Verify applug.json holds exactly expected_version and expected_matika_version
+    (both bare core). Exit 1 on any mismatch. Also fails if eyerate VERSION still
+    carries a pre-release suffix (-dev, -rc.N), which means a final release was
+    not finalized before the drift check.
 
     Note: release.py uses sync(check_only=True) as its drift gate instead of
     calling this directly. This function is retained for standalone use.
     """
     version_file = REPO_ROOT / "VERSION"
     raw = version_file.read_text().strip()
-    if "_dev" in raw:
+    if "-" in raw:
         print(
-            f"DRIFT: VERSION is {raw!r} — _dev must be removed before drift check",
+            f"DRIFT: VERSION is {raw!r} — pre-release suffix must be removed "
+            "before drift check",
             file=sys.stderr,
         )
         sys.exit(1)

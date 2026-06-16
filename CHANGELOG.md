@@ -6,7 +6,7 @@ All notable changes to EyeRate are documented here.
 
 ---
 
-## [Unreleased / 0.0.4_dev]
+## [Unreleased / 0.0.4-dev]
 
 ### Added
 - *(nothing yet)*

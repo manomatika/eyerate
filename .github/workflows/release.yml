@@ -22,12 +22,23 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           NOTES_FILE="docs/release-notes/${TAG}.md"
+
+          # A tag carrying a pre-release suffix (v*-*, e.g. v0.0.4-dev /
+          # v0.0.4-rc.1) is published as a GitHub PRE-RELEASE. A bare-core
+          # tag (v*.*.* with no suffix) is published as a full release.
+          PRERELEASE_FLAG=()
+          case "${TAG}" in
+            *-*) PRERELEASE_FLAG=(--prerelease) ;;
+          esac
+
           if [ -f "${NOTES_FILE}" ]; then
             gh release create "${TAG}" \
+              "${PRERELEASE_FLAG[@]}" \
               --title "EyeRate ${TAG}" \
               --notes-file "${NOTES_FILE}"
           else
             gh release create "${TAG}" \
+              "${PRERELEASE_FLAG[@]}" \
               --title "EyeRate ${TAG}" \
               --notes "## EyeRate ${TAG}"$'\n\n'"No release notes file found for this tag."
           fi
