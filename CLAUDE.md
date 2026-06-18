@@ -1,4 +1,4 @@
-**EyeRate** | Version: **v0.0.4** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **v0.0.4-rc.1** | Copyright (c) 2026 Patrick James Tallman
 
 # CLAUDE.md
 
@@ -215,11 +215,11 @@ Three buckets, separated by directory. Tier isolation is enforced by directory l
 
 The tier separation is enforced by directory structure. Do not collapse back to a single conftest. When adding a test, choose the bucket by what it actually imports: any `eyerate.*` / `matika.*` runtime import → `tests/integration/`. No such import → `tests/scripts/`.
 
-**Running the suite — environment matters.** The full suite is green on main (`56 passed`), but the `tests/integration/` tier `exec_module`s matika's `conftest.py` resolved via a **sibling-clone relative path** (`../../../matika/tests/conftest.py` from `tests/integration/`). It only resolves when eyerate's checkout/worktree sits beside the matika clone (`~/dev/projects/eyerate` next to `~/dev/projects/matika`) **and** `PYTHONPATH` includes `../matika/src`. Run with:
+**Running the suite — environment matters.** The full suite is green on main, but the `tests/integration/` tier `exec_module`s matika's `conftest.py` resolved via a **sibling-clone relative path** (`../../../matika/tests/conftest.py` from `tests/integration/`). It only resolves when eyerate's checkout/worktree sits beside the matika clone (`~/dev/projects/eyerate` next to `~/dev/projects/matika`) **and** `PYTHONPATH` includes `../matika/src`. Run with:
 ```bash
 export SECRET_KEY="test-only-secret-key-never-use-in-production"
 export PYTHONPATH=src:../matika/src
-python -m pytest tests/        # 56 passed
+python -m pytest tests/        # full suite green
 ```
 Running the integration tier from a worktree that is NOT a matika sibling (e.g. under `/tmp`) makes that exec path 404 → **all integration tests ERROR at collection** (not a real failure — a setup artifact). If you see "N errors" in the integration tier, check your CWD/sibling layout before assuming a regression.
 
