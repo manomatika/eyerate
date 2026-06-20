@@ -4,5 +4,35 @@
 
 {% block content %}
 <h1>{{ t.heading_eyerate_admin or "EyeRate Administration" }}</h1>
-<p>{{ t.msg_eyerate_admin_coming_soon or "Administration features coming soon." }}</p>
+
+<form method="post" action="/eyerate/admin">
+  <input type="hidden" name="csrf_token" value="{{ request.session.get('csrf_token', '') }}">
+
+  <fieldset>
+    <legend>Financial Data Provider</legend>
+
+    <label>
+      <input type="radio" name="endpoint" value="yahoo" {% if current_endpoint == "yahoo" %}checked{% endif %}>
+      Matika Standard (Yahoo Finance) — default, no API key required
+    </label><br>
+
+    <label>
+      <input type="radio" name="endpoint" value="finnhub" {% if current_endpoint == "finnhub" %}checked{% endif %}>
+      Finnhub — requires API key
+    </label><br>
+
+    <label>
+      <input type="radio" name="endpoint" value="alphavantage" {% if current_endpoint == "alphavantage" %}checked{% endif %}>
+      Alpha Vantage — requires API key
+    </label>
+
+    <p>
+      <label>API Key (Finnhub or Alpha Vantage):
+        <input type="text" name="api_key" value="{{ current_api_key or '' }}" size="60">
+      </label>
+    </p>
+
+    <button type="submit" class="btn-action">Save</button>
+  </fieldset>
+</form>
 {% endblock %}

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from matika.database import get_db, PageType, PermissionLevel, User
+from matika.database import get_db, get_system_setting, PageType, PermissionLevel, User
+from matika.models import SystemSetting
 from matika.core.utils import load_metadata
 from matika.security.service import check_page_permission
 from matika.auth.dependencies import login_required, validate_csrf
@@ -87,8 +88,35 @@ async def bulk_delete_securities(request: BulkDeleteRequest, _auth: User = Depen
     db.commit(); return {"deleted": c}
 
 @router.get("/admin", response_class=HTMLResponse, tags=[PageType.MAINTENANCE])
-async def eyerate_admin(request: Request, user: User = Depends(check_page_permission)):
-    return request.app.state.templates.TemplateResponse(request, "eyerate_admin.html", {"user": user})
+async def eyerate_admin(request: Request, user: User = Depends(check_page_permission), db: Session = Depends(get_db)):
+    current_endpoint = get_system_setting(db, "financial_security_data_endpoint", "yahoo")
+    current_api_key = get_system_setting(db, "financial_security_data_api_key", "")
+    return request.app.state.templates.TemplateResponse(request, "eyerate_admin.html", {
+        "user": user,
+        "current_endpoint": current_endpoint,
+        "current_api_key": current_api_key,
+    })
+
+@router.post("/admin", tags=[PageType.MAINTENANCE])
+async def eyerate_admin_save(
+    request: Request,
+    endpoint: str = Form(...),
+    api_key: Optional[str] = Form(None),
+    _auth: User = Depends(check_page_permission),
+    _csrf=Depends(validate_csrf),
+    db: Session = Depends(get_db),
+):
+    for name, value in [
+        ("financial_security_data_endpoint", endpoint),
+        ("financial_security_data_api_key", api_key or ""),
+    ]:
+        setting = db.query(SystemSetting).filter(SystemSetting.name == name).first()
+        if setting:
+            setting.value = value
+        else:
+            db.add(SystemSetting(name=name, value=value, is_system=True))
+    db.commit()
+    return RedirectResponse(url="/eyerate/admin", status_code=303)
 
 
 @router.post("/securities/test_endpoint", tags=[PageType.SETTINGS])
