@@ -52,13 +52,22 @@ async def delete_security(sec_id: int, _auth: User = Depends(check_page_permissi
 @router.get("/securities/search")
 async def search_securities(q: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
     from .plugin import get_financial_security_endpoint
-    return await get_financial_security_endpoint(db).search(q)
+    from .endpoints import ProviderError
+    try:
+        return await get_financial_security_endpoint(db).search(q)
+    except ProviderError as e:
+        raise HTTPException(status_code=502, detail=f"lookup failed: {e}")
 
 @router.get("/securities/lookup")
 async def lookup_security(symbol: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
     from .plugin import get_financial_security_endpoint
-    data = await get_financial_security_endpoint(db).lookup(symbol)
-    if not data: raise HTTPException(status_code=404, detail="Not found")
+    from .endpoints import ProviderError
+    try:
+        data = await get_financial_security_endpoint(db).lookup(symbol)
+    except ProviderError as e:
+        raise HTTPException(status_code=502, detail=f"lookup failed: {e}")
+    if data is None:
+        raise HTTPException(status_code=404, detail="Not found")
     return data
 
 class BulkCreateRequest(BaseModel): symbols: List[str]
