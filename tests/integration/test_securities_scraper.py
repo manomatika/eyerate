@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from eyerate.endpoints import YahooScraperEndpoint
+from eyerate.endpoints import YahooScraperEndpoint, FinnhubEndpoint, AlphaVantageEndpoint, ProviderError
 from eyerate.models import FinancialSecurityType as SecurityType, AssetClass
 
 @pytest.mark.asyncio
@@ -14,10 +14,10 @@ async def test_yahoo_endpoint_search(mock_session):
         ]
     }
     mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
-    
+
     endpoint = YahooScraperEndpoint()
     results = await endpoint.search("VOO")
-    
+
     assert len(results) == 1
     assert results[0]["symbol"] == "VOO"
     assert results[0]["name"] == "Vanguard S&P 500 ETF"
@@ -38,13 +38,101 @@ async def test_yahoo_endpoint_lookup(mock_ticker):
         "averageDailyVolume3Month": 3000000,
         "yield": 0.015
     }
-    
+
     endpoint = YahooScraperEndpoint()
     data = await endpoint.lookup("VOO")
-    
+
     assert data is not None
     assert data["symbol"] == "VOO"
     assert data["name"] == "Vanguard S&P 500 ETF"
     assert data["financial_security_type"] == SecurityType.ETF.value
     assert data["current_price"] == "450.12"
     assert data["yield_30_day"] == "0.015"
+
+
+# ---------------------------------------------------------------------------
+# ProviderError propagation — these would have caught Bug B's silent nature
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_yahoo_search_raises_provider_error_on_http_500(mock_session):
+    """Non-200 status must raise ProviderError, not silently return []."""
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = YahooScraperEndpoint()
+    with pytest.raises(ProviderError, match="HTTP 500"):
+        await endpoint.search("VOO")
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_yahoo_search_raises_provider_error_on_rate_limit(mock_session):
+    """HTTP 429 must raise ProviderError, not silently return []."""
+    mock_response = MagicMock()
+    mock_response.status_code = 429
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = YahooScraperEndpoint()
+    with pytest.raises(ProviderError, match="rate limited"):
+        await endpoint.search("VOO")
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_yahoo_search_200_empty_quotes_returns_empty_list(mock_session):
+    """200 response with no quotes must return [] (genuine empty), not raise."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"quotes": []}
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = YahooScraperEndpoint()
+    # Use a query that won't trigger the ticker-fallback logic (contains a space)
+    results = await endpoint.search("no match here")
+    assert results == []
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.yf.Ticker")
+async def test_yahoo_lookup_raises_provider_error_on_exception(mock_ticker):
+    """Exception in yfinance (e.g. ImportError in frozen app) must raise ProviderError."""
+    mock_ticker.side_effect = ImportError("No module named 'yfinance'")
+
+    endpoint = YahooScraperEndpoint()
+    with pytest.raises(ProviderError, match="Yahoo lookup error"):
+        await endpoint.lookup("VOO")
+
+
+@pytest.mark.asyncio
+async def test_finnhub_search_raises_provider_error_on_missing_key():
+    """Missing API key must raise ProviderError, not silently return []."""
+    endpoint = FinnhubEndpoint(api_key="")
+    with pytest.raises(ProviderError, match="API key"):
+        await endpoint.search("VOO")
+
+
+@pytest.mark.asyncio
+async def test_alphavantage_search_raises_provider_error_on_missing_key():
+    """Missing API key must raise ProviderError, not silently return []."""
+    endpoint = AlphaVantageEndpoint(api_key="")
+    with pytest.raises(ProviderError, match="API key"):
+        await endpoint.search("VOO")
+
+
+@pytest.mark.asyncio
+async def test_finnhub_lookup_raises_provider_error_on_missing_key():
+    """Missing API key must raise ProviderError, not silently return None."""
+    endpoint = FinnhubEndpoint(api_key="")
+    with pytest.raises(ProviderError, match="API key"):
+        await endpoint.lookup("VOO")
+
+
+@pytest.mark.asyncio
+async def test_alphavantage_lookup_raises_provider_error_on_missing_key():
+    """Missing API key must raise ProviderError, not silently return None."""
+    endpoint = AlphaVantageEndpoint(api_key="")
+    with pytest.raises(ProviderError, match="API key"):
+        await endpoint.lookup("VOO")

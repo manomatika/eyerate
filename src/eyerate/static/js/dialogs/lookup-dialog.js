@@ -111,9 +111,17 @@ export class LookupDialog {
     }
     async performFetch(q) {
         let resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q)}`);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
         let data = await resp.json();
         if (data.length === 0 && !q.endsWith('*')) {
             resp = await fetch(`/eyerate/securities/search?q=${encodeURIComponent(q + '*')}`);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: `HTTP ${resp.status}` }));
+                throw new Error(err.detail || `HTTP ${resp.status}`);
+            }
             data = await resp.json();
         }
         return data;

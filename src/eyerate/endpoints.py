@@ -9,17 +9,36 @@ from .models import FinancialSecurityType, AssetClass
 
 logger = logging.getLogger(__name__)
 
+
+class ProviderError(Exception):
+    """Raised when a data provider call fails (as opposed to returning genuine zero results).
+
+    Callers must treat ProviderError as a hard failure — not a silent empty result.
+    A ProviderError means the call itself could not complete (HTTP error, dep missing,
+    network failure, rate limit, missing API key). It is distinct from a successful call
+    that happened to return no matches.
+    """
+
+
 class BaseFinancialSecurityEndpoint(ABC):
     """Abstract base class for all financial security data providers."""
-    
+
     @abstractmethod
     async def search(self, query: str) -> List[Dict[str, str]]:
-        """Search for securities by name or symbol. Returns list of {symbol, name, type, exchange}."""
+        """Search for securities by name or symbol. Returns list of {symbol, name, type, exchange}.
+
+        Returns an empty list when the query matched nothing (genuine zero results).
+        Raises ProviderError when the call itself failed (network, auth, HTTP error, etc.).
+        """
         pass
 
     @abstractmethod
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Fetch detailed metadata for a specific symbol."""
+        """Fetch detailed metadata for a specific symbol.
+
+        Returns None when the symbol genuinely does not exist.
+        Raises ProviderError when the call itself failed.
+        """
         pass
 
     @abstractmethod
@@ -41,13 +60,13 @@ class BaseFinancialSecurityEndpoint(ABC):
         y_type = info.get("quoteType")
         if y_type == "MONEYMARKET":
             return AssetClass.MONEY_MARKET.value
-        
+
         category = info.get("category", "")
         long_name = info.get("longName", "") or info.get("shortName", "")
         summary = info.get("longBusinessSummary", "")
-        
+
         text_to_check = f"{category} {long_name} {summary}".lower()
-        
+
         if "small" in text_to_check:
             return AssetClass.SMALL_CAP_STOCK.value
         if "mid" in text_to_check:
@@ -56,15 +75,15 @@ class BaseFinancialSecurityEndpoint(ABC):
             return AssetClass.LARGE_CAP_STOCK.value
         if "bond" in text_to_check:
             return AssetClass.DOMESTIC_BOND.value
-            
+
         if y_type == "EQUITY":
             return AssetClass.LARGE_CAP_STOCK.value
-            
+
         return None
 
 class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
     """Matika Standard (Yahoo Scraper) - Uses curl_cffi and yfinance."""
-    
+
     SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
     HEADERS = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -83,10 +102,10 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
                 await asyncio.sleep(random.uniform(0.1, 0.3))
                 response = await s.get(self.SEARCH_URL, params=params, headers=self.HEADERS)
                 if response.status_code == 429:
-                    raise Exception("Yahoo rate limited (429)")
+                    raise ProviderError("Yahoo rate limited (429)")
                 if response.status_code != 200:
-                    return []
-                
+                    raise ProviderError(f"Yahoo search HTTP {response.status_code}")
+
                 data = response.json()
                 results = []
                 for quote in data.get("quotes", []):
@@ -96,7 +115,7 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
                         "type": quote.get("quoteType"),
                         "exchange": quote.get("exchange")
                     })
-                
+
                 clean_query = query.strip().upper()
                 if not results and clean_query and len(clean_query) <= 10 and all(c.isalnum() or c in ".-" for c in clean_query):
                     results.append({
@@ -106,9 +125,11 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
                         "exchange": "N/A"
                     })
                 return results
+        except ProviderError:
+            raise
         except Exception as e:
             logger.error(f"Yahoo search error: {e}")
-            return []
+            raise ProviderError(f"Yahoo search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
         try:
@@ -116,10 +137,10 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
             info = await loop.run_in_executor(None, lambda: yf.Ticker(symbol).info)
             if not info or 'symbol' not in info:
                 return None
-            
+
             quote_type = info.get("quoteType")
             y_val = str(info.get("yield", ""))
-            
+
             return {
                 "symbol": symbol,
                 "name": info.get("longName") or info.get("shortName") or symbol,
@@ -134,13 +155,15 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
                 "yield_30_day": y_val if quote_type != "MONEYMARKET" else "",
                 "yield_7_day": y_val if quote_type == "MONEYMARKET" else ""
             }
+        except ProviderError:
+            raise
         except Exception as e:
             logger.error(f"Yahoo lookup error for '{symbol}': {e}")
-            return None
+            raise ProviderError(f"Yahoo lookup error for '{symbol}': {e}")
 
 class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
     """Finnhub API - Reliable, requires API key."""
-    
+
     BASE_URL = "https://finnhub.io/api/v1"
 
     def __init__(self, api_key: str):
@@ -150,57 +173,77 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
         return "Finnhub API"
 
     async def search(self, query: str) -> List[Dict[str, str]]:
-        if not self.api_key: return []
+        if not self.api_key:
+            raise ProviderError("Finnhub requires an API key")
         url = f"{self.BASE_URL}/search"
         params = {"q": query, "token": self.api_key}
-        async with AsyncSession() as s:
-            response = await s.get(url, params=params)
-            if response.status_code == 429: raise Exception("Finnhub rate limited")
-            if response.status_code != 200: return []
-            
-            data = response.json()
-            results = []
-            for item in data.get("result", []):
-                results.append({
-                    "symbol": item.get("symbol"),
-                    "name": item.get("description"),
-                    "type": item.get("type"),
-                    "exchange": item.get("displaySymbol")
-                })
-            return results
+        try:
+            async with AsyncSession() as s:
+                response = await s.get(url, params=params)
+                if response.status_code == 429:
+                    raise ProviderError("Finnhub rate limited (429)")
+                if response.status_code != 200:
+                    raise ProviderError(f"Finnhub search HTTP {response.status_code}")
+
+                data = response.json()
+                results = []
+                for item in data.get("result", []):
+                    results.append({
+                        "symbol": item.get("symbol"),
+                        "name": item.get("description"),
+                        "type": item.get("type"),
+                        "exchange": item.get("displaySymbol")
+                    })
+                return results
+        except ProviderError:
+            raise
+        except Exception as e:
+            logger.error(f"Finnhub search error: {e}")
+            raise ProviderError(f"Finnhub search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
-        if not self.api_key: return None
-        async with AsyncSession() as s:
-            q_url = f"{self.BASE_URL}/quote"
-            q_resp = await s.get(q_url, params={"symbol": symbol, "token": self.api_key})
-            p_url = f"{self.BASE_URL}/stock/profile2"
-            p_resp = await s.get(p_url, params={"symbol": symbol, "token": self.api_key})
-            
-            if q_resp.status_code != 200 or p_resp.status_code != 200:
-                return None
-            
-            q_data = q_resp.json()
-            p_data = p_resp.json()
-            
-            return {
-                "symbol": symbol,
-                "name": p_data.get("name") or symbol,
-                "financial_security_type": self._map_security_type(p_data.get("quoteType", "EQUITY")),
-                "asset_class": None,
-                "current_price": str(q_data.get("c", "")),
-                "previous_close": str(q_data.get("pc", "")),
-                "open_price": str(q_data.get("o", "")),
-                "nav": "",
-                "range_52_week": f"{q_data.get('l', '')} - {q_data.get('h', '')}",
-                "avg_volume": "",
-                "yield_30_day": "",
-                "yield_7_day": ""
-            }
+        if not self.api_key:
+            raise ProviderError("Finnhub requires an API key")
+        try:
+            async with AsyncSession() as s:
+                q_url = f"{self.BASE_URL}/quote"
+                q_resp = await s.get(q_url, params={"symbol": symbol, "token": self.api_key})
+                p_url = f"{self.BASE_URL}/stock/profile2"
+                p_resp = await s.get(p_url, params={"symbol": symbol, "token": self.api_key})
+
+                if q_resp.status_code == 429 or p_resp.status_code == 429:
+                    raise ProviderError("Finnhub rate limited (429)")
+                if q_resp.status_code != 200:
+                    raise ProviderError(f"Finnhub quote HTTP {q_resp.status_code}")
+                if p_resp.status_code != 200:
+                    raise ProviderError(f"Finnhub profile HTTP {p_resp.status_code}")
+
+                q_data = q_resp.json()
+                p_data = p_resp.json()
+
+                return {
+                    "symbol": symbol,
+                    "name": p_data.get("name") or symbol,
+                    "financial_security_type": self._map_security_type(p_data.get("quoteType", "EQUITY")),
+                    "asset_class": None,
+                    "current_price": str(q_data.get("c", "")),
+                    "previous_close": str(q_data.get("pc", "")),
+                    "open_price": str(q_data.get("o", "")),
+                    "nav": "",
+                    "range_52_week": f"{q_data.get('l', '')} - {q_data.get('h', '')}",
+                    "avg_volume": "",
+                    "yield_30_day": "",
+                    "yield_7_day": ""
+                }
+        except ProviderError:
+            raise
+        except Exception as e:
+            logger.error(f"Finnhub lookup error for '{symbol}': {e}")
+            raise ProviderError(f"Finnhub lookup error for '{symbol}': {e}")
 
 class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
     """Alpha Vantage API - Reliable backup, requires API key."""
-    
+
     BASE_URL = "https://www.alphavantage.co/query"
 
     def __init__(self, api_key: str):
@@ -210,52 +253,70 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
         return "Alpha Vantage API"
 
     async def search(self, query: str) -> List[Dict[str, str]]:
-        if not self.api_key: return []
+        if not self.api_key:
+            raise ProviderError("Alpha Vantage requires an API key")
         params = {
             "function": "SYMBOL_SEARCH",
             "keywords": query,
             "apikey": self.api_key
         }
-        async with AsyncSession() as s:
-            response = await s.get(self.BASE_URL, params=params)
-            if response.status_code != 200: return []
-            data = response.json()
-            if "Note" in data: raise Exception("Alpha Vantage rate limited")
-            
-            results = []
-            for item in data.get("bestMatches", []):
-                results.append({
-                    "symbol": item.get("1. symbol"),
-                    "name": item.get("2. name"),
-                    "type": item.get("3. type"),
-                    "exchange": item.get("4. region")
-                })
-            return results
+        try:
+            async with AsyncSession() as s:
+                response = await s.get(self.BASE_URL, params=params)
+                if response.status_code != 200:
+                    raise ProviderError(f"Alpha Vantage search HTTP {response.status_code}")
+                data = response.json()
+                if "Note" in data:
+                    raise ProviderError("Alpha Vantage rate limited")
+
+                results = []
+                for item in data.get("bestMatches", []):
+                    results.append({
+                        "symbol": item.get("1. symbol"),
+                        "name": item.get("2. name"),
+                        "type": item.get("3. type"),
+                        "exchange": item.get("4. region")
+                    })
+                return results
+        except ProviderError:
+            raise
+        except Exception as e:
+            logger.error(f"Alpha Vantage search error: {e}")
+            raise ProviderError(f"Alpha Vantage search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
-        if not self.api_key: return None
+        if not self.api_key:
+            raise ProviderError("Alpha Vantage requires an API key")
         params = {
             "function": "GLOBAL_QUOTE",
             "symbol": symbol,
             "apikey": self.api_key
         }
-        async with AsyncSession() as s:
-            response = await s.get(self.BASE_URL, params=params)
-            if response.status_code != 200: return None
-            data = response.json().get("Global Quote", {})
-            if not data: return None
-            
-            return {
-                "symbol": symbol,
-                "name": symbol,
-                "financial_security_type": FinancialSecurityType.STOCK.value,
-                "asset_class": None,
-                "current_price": data.get("05. price", ""),
-                "previous_close": data.get("08. previous close", ""),
-                "open_price": data.get("02. open", ""),
-                "nav": "",
-                "range_52_week": f"{data.get('04. low', '')} - {data.get('03. high', '')}",
-                "avg_volume": data.get("06. volume", ""),
-                "yield_30_day": "",
-                "yield_7_day": ""
-            }
+        try:
+            async with AsyncSession() as s:
+                response = await s.get(self.BASE_URL, params=params)
+                if response.status_code != 200:
+                    raise ProviderError(f"Alpha Vantage lookup HTTP {response.status_code}")
+                data = response.json().get("Global Quote", {})
+                if not data:
+                    return None
+
+                return {
+                    "symbol": symbol,
+                    "name": symbol,
+                    "financial_security_type": FinancialSecurityType.STOCK.value,
+                    "asset_class": None,
+                    "current_price": data.get("05. price", ""),
+                    "previous_close": data.get("08. previous close", ""),
+                    "open_price": data.get("02. open", ""),
+                    "nav": "",
+                    "range_52_week": f"{data.get('04. low', '')} - {data.get('03. high', '')}",
+                    "avg_volume": data.get("06. volume", ""),
+                    "yield_30_day": "",
+                    "yield_7_day": ""
+                }
+        except ProviderError:
+            raise
+        except Exception as e:
+            logger.error(f"Alpha Vantage lookup error for '{symbol}': {e}")
+            raise ProviderError(f"Alpha Vantage lookup error for '{symbol}': {e}")

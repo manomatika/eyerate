@@ -52,6 +52,20 @@ class EyeRatePlugin(BaseAppLug):
                 if plugin_template_dir not in self.templates.env.loader.searchpath:
                     self.templates.env.loader.searchpath.append(plugin_template_dir)
 
+        # 5. Verify data-provider deps are importable in this environment (frozen check)
+        # yfinance and curl_cffi are lazy imports inside endpoint methods, so PyInstaller
+        # won't catch a missing bundling at load time — this surfaces it immediately.
+        try:
+            import yfinance  # noqa: F401
+            import curl_cffi  # noqa: F401
+            logger.info("Data provider deps OK (yfinance, curl_cffi)")
+        except ImportError as exc:
+            logger.error(
+                f"Data provider deps missing — symbol lookup/search will fail: {exc}. "
+                "If running frozen, ensure yfinance+curl_cffi are collected in matika.spec "
+                "and installed before PyInstaller in the build step."
+            )
+
         logger.info("EyeRate Plugin Loaded Successfully.")
 
     def on_unload(self, db: Session):
