@@ -22,3 +22,8 @@ if MATIKA_SRC not in sys.path:
 MATIKA_TESTS = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "matika", "tests"))
 if MATIKA_TESTS not in sys.path:
     sys.path.insert(0, MATIKA_TESTS)
+
+# Make eyerate itself importable (integration tests import from eyerate.*).
+EYERATE_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+if EYERATE_SRC not in sys.path:
+    sys.path.insert(0, EYERATE_SRC)
