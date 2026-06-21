@@ -1,4 +1,4 @@
-**EyeRate** | Version: **v0.0.4-rc.1** | Copyright (c) 2026 Patrick James Tallman
+**EyeRate** | Version: **v0.0.4-rc.2** | Copyright (c) 2026 Patrick James Tallman
 
 # CLAUDE.md
 
@@ -102,7 +102,7 @@ npm run build   # compile src/eyerate/ts/**/*.ts → src/eyerate/static/js/
 
 ### Manifest Files
 
-- `applug.json` — Plugin ID (`eyerate`), `name` (`"EyeRate"`), `display_name` (`"EyeRate"`), `version`, entry point, permissions, and the settings UI schema (drives the data provider selector in Matika's settings page). Permissions: Admin=FULL, User=FULL for `/eyerate/securities`.
+- `applug.json` — Plugin `id` (`eyerate`), `name` (`"EyeRate"`), `description`, `version`, `matika_version`, entry point, permissions, and the `settings_ui` schema. There is **no** `display_name` key (the UI label falls back to `name`). The `settings_ui` schema drives the data-provider selector on Matika's settings page (section `data_providers`): a `financial_security_data_endpoint` select (`yahoo`/`finnhub`/`alphavantage`, default `yahoo`) and a `financial_security_data_api_key` textbox shown only when the endpoint is `finnhub` or `alphavantage`. Permissions: Admin=FULL, User=FULL for `/eyerate/securities`.
 - `eyerate_menus.json` — Consolidated menu manifest. Contains two optional top-level sections:
   - `application` — Application-type menu (e.g. EyeRate top-level nav entry).
   - `roles` — Array of role menus. Each entry has `role`, `id`, `label_key`, and `items`.
@@ -166,11 +166,18 @@ GET routes that call external APIs (search, lookup) must include `Depends(login_
 
 ### Data Providers (`endpoints.py`)
 
-The active endpoint is resolved at runtime from the Matika system setting `financial_security_data_endpoint`. All providers implement `BaseFinancialSecurityEndpoint` with `search()` and `lookup()` methods:
+The active provider is resolved per-request in `plugin.py` `get_financial_security_endpoint(db)` from two Matika system settings: `financial_security_data_endpoint` (`yahoo` default / `finnhub` / `alphavantage`) and `financial_security_data_api_key` (fed to Finnhub/Alpha Vantage). All providers implement `BaseFinancialSecurityEndpoint` with async `search()`, `lookup()`, and `get_name()`:
 
-- **YahooScraperEndpoint** (default) — uses `curl_cffi` for search, `yfinance` for lookup
-- **FinnhubEndpoint** — requires `financial_security_data_api_key` system setting
-- **AlphaVantageEndpoint** — requires `financial_security_data_api_key` system setting
+- **YahooScraperEndpoint** (default) — `curl_cffi` for search, `yfinance` for lookup; `get_name()` → `"Matika Standard (Yahoo Scraper)"`
+- **FinnhubEndpoint** — requires `financial_security_data_api_key`
+- **AlphaVantageEndpoint** — requires `financial_security_data_api_key`
+
+**Provider error contract (load-bearing — no silent empties).** A `ProviderError` exception distinguishes a genuine zero-result from a failed call:
+- An empty list / `None` means "the provider succeeded and found nothing."
+- A **`ProviderError`** means the call itself failed (rate-limit, non-200, missing API key, transport error). Every provider wraps its failure modes (`except Exception as e: raise ProviderError(...)`) so failures never leak out as a silent empty result.
+- `routes.py` translates `ProviderError` into **HTTP 502** with a `detail` body (`f"lookup failed: {e}"`) on both `search` and `lookup`; a genuine `None` from `lookup` maps to **HTTP 404**. The error is surfaced LOUDLY in the UI, never swallowed. This contract (and the admin UI below) is verified against the frozen artifact by ahimsa's tier-a/tier-b checks (forced keyless `finnhub` → visible HTTP 502, not an empty list).
+
+**Admin provider-selection UI.** Beyond the declarative `settings_ui` schema in `applug.json`, eyerate serves a rendered admin page at `/eyerate/admin` (`routes.py` `eyerate_admin` GET + `eyerate_admin_save` POST, CSRF-protected via `validate_csrf`), template `templates/eyerate_admin.html` — three provider radios (`yahoo`/`finnhub`/`alphavantage`) plus an API-key input, persisted to `SystemSetting` rows.
 
 ### Routes (`routes.py`)
 
