@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout eyerate
+        uses: actions/checkout@v6
+        with:
+          path: eyerate
+
+      - name: Checkout matika (sibling — required by test suite)
+        uses: actions/checkout@v6
+        with:
+          repository: manomatika/matika
+          path: matika
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Create venv and install dependencies
+        run: |
+          uv venv .venv --python python3.14
+          uv pip install --python .venv/bin/python -r matika/requirements.txt
+          uv pip install --python .venv/bin/python -r eyerate/requirements.txt
+
+      - name: Run pytest
+        working-directory: eyerate
+        env:
+          PYTHONPATH: src:../matika/src
+          SECRET_KEY: test-only-secret-key-not-for-production
+        run: ../.venv/bin/python -m pytest tests/ -v
