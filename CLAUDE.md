@@ -24,7 +24,7 @@ CLAUDE.md must never knowingly contain stale information. Whenever CLAUDE.md is 
 
 - **The user does all git review and merges in the browser.** Don't merge PRs, push to main, or tag releases unless explicitly instructed.
 - **Don't stage or commit unless explicitly granted.** The user handles `git add` / `git commit` manually by default. When granted, follow the conventional-commit pattern (`docs:`, `fix:`, `feat:`, `refactor:`, etc.) and include `Closes manomatika/<repo>#N` (fully qualified) where applicable.
-- **Cross-repo issue/PR references must always be fully qualified.** Write `manomatika/matika#N`, `manomatika/eyerate#N`, `manomatika/ahimsa#N` — never a bare `#N` for an issue that lives in a different repo. Bare refs have caused real damage: a misqualified `Closes #11` / `Closes #12` in matika PR #35 closed unrelated issues in another repo's tracker. Bare refs are only safe when the PR and the issue are in the same repo.
+- **Cross-repo issue/PR references must always be fully qualified.** Write `manomatika/matika#N`, `manomatika/eyerate#N`, `manomatika/ahimsa#N` — never a bare `#N` for an issue that lives in a different repo. Bare refs have caused real damage: a misqualified `Closes #11` / `Closes #12` in matika PR #35 closed unrelated issues in another repo's tracker. Bare refs are only safe when the PR and the issue are in the same repo. Cross-repo `Closes` references only cross-link — they do NOT auto-close; close manually after merge.
 - **cc does not run `git merge` locally.** Integration of branches is done by the user via PR merge in the browser. For any local branch updates cc performs, use `git rebase` or `git cherry-pick`. cc may run `rm -rf` ONLY within a repo working directory under `~/dev/projects/` (a clone `~/dev/projects/<repo>/` or a worktree `~/dev/projects/<repo>-<branch>/`) or under `~/dev/projects/cc_output/` — never anywhere else on the filesystem, and never with an unanchored or variable-expanded path that could resolve outside them. Targeted `git rm` for tracked files remains the norm; `rm -rf` is the constrained exception (rule 23).
 - **`VERSION` is the single source of truth** for version metadata in this repo. Never hand-edit version literals in other files; release tooling propagates from `VERSION`.
 - **The user uses git worktrees** for parallel work (e.g. `~/dev/projects/matika-45/` alongside `~/dev/projects/matika/` on a separate branch). At any moment, the user may be operating in any of several working directories for the same repo. Always check the current branch (`git branch --show-current`) and confirm it matches what you expect before assuming.
@@ -109,6 +109,7 @@ npm run build   # compile src/eyerate/ts/**/*.ts → src/eyerate/static/js/
   - `roles` — Array of role menus. Each entry has `role`, `id`, `label_key`, and `items`.
     - **Admin role items**: flat `Link` objects (no `Menu` wrapper); appear aggregated in the Admin dropdown.
     - **User role items**: wrapped in a `Menu` object to produce a named dropdown.
+- `eyerate_screens.json` — Screen inventory for Playwright-based testing. Uses the matika screen schema v1.0 (`schema_version: "1.0"`, `screens` array). Covers `eyerate:securities_list` (`/eyerate/securities`), `eyerate:admin` (`/eyerate/admin`), and `not_a_screen` entries for POST-only handlers (`eyerate:securities_create`, `eyerate:securities_update`, `eyerate:securities_delete`, `eyerate:bulk_create`, `eyerate:bulk_delete`). Consumed by `ScreenLoaderService` in matika (`src/matika/core/screen_loader.py`) — see matika CLAUDE.md *Screen Data Schema*.
 
 ### Menu Loading Pipeline
 
@@ -233,7 +234,7 @@ python -m pytest tests/        # full suite green
 ```
 Running the integration tier from a worktree that is NOT a matika sibling (e.g. under `/tmp`) makes that exec path 404 → **all integration tests ERROR at collection** (not a real failure — a setup artifact). If you see "N errors" in the integration tier, check your CWD/sibling layout before assuming a regression.
 
-**CI gate gap (flagged).** eyerate's only PR-triggered workflow is `check-compiled-assets.yml` (TS staleness) — there is **no PR-triggered Python test gate**. The pytest suite runs only locally. A real Python regression could merge unnoticed; per the standing "all tests pass" rule, run the full suite locally before merging, and adding a Python-test CI job is a worthwhile hardening (see plan §6).
+**CI gate.** eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, installs via `pip install uv` → `uv venv` → `uv pip install`, sets `PYTHONPATH=src:../matika/src`, and runs `python -m pytest tests/ -v`. A Python regression is caught by CI before merge.
 
 ## Standing Rules
 
