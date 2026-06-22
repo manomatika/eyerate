@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "screens": [
+    {
+      "screen_id": "eyerate:securities_list",
+      "type": "screen",
+      "route": "/eyerate/securities",
+      "markers": [".securities-table", "#securities-list"],
+      "steps": [
+        {"verb": "navigate", "target": "/eyerate/securities"}
+      ]
+    },
+    {
+      "screen_id": "eyerate:admin",
+      "type": "screen",
+      "route": "/eyerate/admin",
+      "markers": ["#eyerate-admin-form", ".admin-provider-section"],
+      "steps": [
+        {"verb": "navigate", "target": "/eyerate/admin"}
+      ]
+    },
+    {
+      "screen_id": "eyerate:securities_create",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/create",
+      "reason": "POST-only form handler; redirects to /eyerate/securities on success — no user-facing HTML rendered"
+    },
+    {
+      "screen_id": "eyerate:securities_update",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/update/{sec_id}",
+      "reason": "POST-only form handler; redirects to /eyerate/securities on success — no user-facing HTML rendered"
+    },
+    {
+      "screen_id": "eyerate:securities_delete",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/delete/{sec_id}",
+      "reason": "POST-only action endpoint; redirects to /eyerate/securities on success — no user-facing HTML rendered"
+    },
+    {
+      "screen_id": "eyerate:securities_search",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/search",
+      "reason": "JSON API endpoint (GET); returns structured data, not an HTML screen"
+    },
+    {
+      "screen_id": "eyerate:securities_lookup",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/lookup",
+      "reason": "JSON API endpoint (GET); returns structured data, not an HTML screen"
+    },
+    {
+      "screen_id": "eyerate:securities_bulk_create",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/bulk_create",
+      "reason": "POST JSON API endpoint; returns operation result, not an HTML screen"
+    },
+    {
+      "screen_id": "eyerate:securities_bulk_delete",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/bulk_delete",
+      "reason": "POST JSON API endpoint; returns operation result, not an HTML screen"
+    },
+    {
+      "screen_id": "eyerate:admin_save",
+      "type": "not_a_screen",
+      "route": "/eyerate/admin",
+      "reason": "POST-only form handler (provider settings submit); redirects to GET /eyerate/admin on success — no user-facing HTML rendered"
+    },
+    {
+      "screen_id": "eyerate:securities_test_endpoint",
+      "type": "not_a_screen",
+      "route": "/eyerate/securities/test_endpoint",
+      "reason": "POST JSON API endpoint (SETTINGS tag); returns endpoint test result, not an HTML screen"
+    }
+  ]
+}
