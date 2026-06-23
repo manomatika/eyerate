@@ -136,6 +136,10 @@ Source lives under `src/eyerate/ts/` (subdirs: `admin/`, `dialogs/`, `shared/`).
 
 Tests require `../matika` as a sibling directory. Three tiers: `tests/conftest.py` (minimal shared), `tests/integration/` (stack-coupled), `tests/scripts/` (stack-independent). Full setup, layout, and CI gate detail: see `docs/testing.md`.
 
+### Locale
+
+Locale i18n detail: see `docs/locale.md`.
+
 ### Release Pipeline
 
 `VERSION` is the single source of truth. `scripts/release.py` and `scripts/sync_version.py` propagate it into `applug.json`. Full pipeline, versioning contract, drift detection, and GitHub Release notes detail: see `docs/release-pipeline.md`.
