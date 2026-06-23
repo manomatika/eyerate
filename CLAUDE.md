@@ -1,5 +1,3 @@
-**EyeRate** | Version: **v0.0.4-rc.2** | Copyright (c) 2026 Patrick James Tallman
-
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -56,13 +54,13 @@ CLAUDE.md must never knowingly contain stale information. Whenever CLAUDE.md is 
 - **Milestone naming is shared and match-when-present** across repos. When a milestone exists in more than one repo, its title is byte-for-byte identical so the org Project rolls it up into a single cross-repo group. Milestone names never contain version numbers or dates.
 - **Canonical milestone titles in the current release cycle:**
   - `Deployment & Install`
-  - `Cleanup & Tooling`
+  - `Cleanup & Tooling` (matika + eyerate + ahimsa)
   - `Registry` (ahimsa only)
   - `Signing & Distribution` (ahimsa only)
   - `QA & System Test` (ahimsa only)
   - `Planning` (matika + eyerate + ahimsa)
   - `Playwright` (matika only)
-  - `Documentation & Release Readiness` — the terminal release gate (all three)
+  - `Documentation & Release Readiness` — the terminal release gate (all four)
 - **Org-level Project: [ManoMatika Roadmap](https://github.com/orgs/manomatika/projects/1)** is the cross-repo backlog view. Its description records which component versions compose each manomatika release (e.g. ManoMatika v0.0.1 = matika v0.0.4 + eyerate v0.0.4 + ahimsa v0.0.1).
 - **Milestone due dates are the single source of truth for dates.** The roadmap renders timelines from milestone Markers; do NOT create per-item date fields on the Project for scheduling (Pattern A — milestone-driven).
 
@@ -148,5 +146,5 @@ Locale i18n detail: see `docs/locale.md`.
 
 General working discipline (tests, git, security checks, cross-repo refs, etc.) lives in the *Working Style & Discipline* section at the top of this file. The bullets below are eyerate-specific.
 
-- Never commit `MATIKA_ENV=development` or any `.env` file containing it.
+- Never commit any `.env` file.
 - Standard Python `.gitignore` (GitHub's official Python template) is in place: covers `__pycache__/`, build/dist, `*.egg-info/`, `.pytest_cache/`, `.coverage`, `htmlcov/`, venv variants, `.tox/`, and OS/IDE noise. Never commit compiled artifacts.
