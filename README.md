@@ -46,13 +46,13 @@ A standalone `.dmg` / `.exe` built with PyInstaller bundles the framework and se
 
 ## Dependencies
 
-EyeRate's Python dependencies (yfinance, curl_cffi, beautifulsoup4) are declared in `requirements.txt`. Install from the eyerate clone:
+EyeRate's Python dependencies (yfinance, curl_cffi) are declared in `pyproject.toml`. When running inside the matika dev environment, these are installed via:
 
 ```bash
-pip install -r requirements.txt
+uv sync --dev      # from the eyerate repo root
 ```
 
-These are eyerate-specific and intentionally not in matika's `requirements.txt` (matika is plugin-agnostic and ships no domain-specific dependencies).
+These are eyerate-specific and intentionally not in matika's `pyproject.toml` (matika is plugin-agnostic and ships no domain-specific dependencies).
 
 ## Plugin Structure
 

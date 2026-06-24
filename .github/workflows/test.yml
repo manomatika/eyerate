@@ -44,8 +44,15 @@ jobs:
       - name: Create venv and install dependencies
         run: |
           uv venv .venv --python python3.14
-          uv pip install --python .venv/bin/python -r matika/requirements.txt
-          uv pip install --python .venv/bin/python -r eyerate/requirements.txt
+          # Use matika's exact locked deps (not just >=minimums) to avoid
+          # version drift that can surface deprecation warnings from transitive
+          # packages like starlette. Strip the "-e ." self-install line since
+          # matika is imported via PYTHONPATH, not as an installed package here.
+          uv export --directory matika --frozen --no-hashes --no-dev \
+            | grep -v "^-e " > /tmp/matika-locked.txt
+          uv pip install --python .venv/bin/python -r /tmp/matika-locked.txt
+          uv pip install --python .venv/bin/python -r eyerate/pyproject.toml
+          uv pip install --python .venv/bin/python pytest pytest-asyncio
 
       - name: Run pytest
         working-directory: eyerate
