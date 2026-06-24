@@ -88,4 +88,5 @@ See `CLAUDE.md` for the full test layout and tier-isolation convention.
 - [User Guide](docs/USER_GUIDE.md)
 
 ## License
-Copyright (c) 2026 Patrick James Tallman. All Rights Reserved.
+
+ManoMatika is **source-available, not open-source**. Copyright (c) 2026 Patrick James Tallman. All rights reserved. The source is published for reference and transparency only; no usage, copying, modification, redistribution, or deployment rights are granted without a written agreement. See [LICENSE](LICENSE).
