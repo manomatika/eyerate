@@ -32,8 +32,10 @@ export PYTHONPATH=src:../matika/src
 python -m pytest tests/        # full suite green
 ```
 
+Note: `uv run pytest` is **not** the canonical invocation for eyerate. eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package. `uv run` does not set `PYTHONPATH`, so the integration tier will fail at collection. Always set `PYTHONPATH` explicitly as shown above.
+
 Running the integration tier from a worktree that is NOT a matika sibling (e.g. under `/tmp`) makes that exec path 404 → **all integration tests ERROR at collection** (not a real failure — a setup artifact). If you see "N errors" in the integration tier, check your CWD/sibling layout before assuming a regression.
 
 ## CI Gate
 
-eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, installs via `pip install uv` → `uv venv` → `uv pip install`, sets `PYTHONPATH=src:../matika/src`, and runs `python -m pytest tests/ -v`. A Python regression is caught by CI before merge.
+eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, installs via `pip install uv` → `uv venv` → `uv pip install`, sets `PYTHONPATH=src:../matika/src`, and runs `../.venv/bin/python -m pytest tests/ -v`. A Python regression is caught by CI before merge.
