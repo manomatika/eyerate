@@ -74,12 +74,16 @@ CLAUDE.md must never knowingly contain stale information. Whenever CLAUDE.md is 
 
 **Run all tests** (requires `../matika` sibling directory):
 ```bash
+export SECRET_KEY="test-only-secret-key-never-use-in-production"
 export PYTHONPATH=src:../matika/src
 python -m pytest tests/
 ```
 
+Note: `uv run pytest` is not the canonical invocation here — eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package. Set `PYTHONPATH` explicitly as shown above.
+
 **Run a single test:**
 ```bash
+export SECRET_KEY="test-only-secret-key-never-use-in-production"
 export PYTHONPATH=src:../matika/src
 python -m pytest tests/integration/test_securities.py::test_securities_crud
 ```
