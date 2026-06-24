@@ -38,4 +38,10 @@ Running the integration tier from a worktree that is NOT a matika sibling (e.g. 
 
 ## CI Gate
 
-eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, installs via `pip install uv` → `uv venv` → `uv pip install`, sets `PYTHONPATH=src:../matika/src`, and runs `../.venv/bin/python -m pytest tests/ -v`. A Python regression is caught by CI before merge.
+eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, then installs in three layers:
+
+1. matika's exact locked runtime deps (`uv export --frozen --no-dev` from matika's lock).
+2. eyerate's runtime deps (`uv pip install -r eyerate/pyproject.toml`).
+3. eyerate's test tooling from the canonical `[dependency-groups] dev` (`uv pip install --directory eyerate --group dev`), which includes `httpx2`, `pytest`, and `pytest-asyncio`.
+
+It then sets `PYTHONPATH=src:../matika/src` and runs `../.venv/bin/python -m pytest tests/ -v`. The `dev` group in `pyproject.toml` is the single source of truth for eyerate's test tooling — no hardcoded package list in the workflow. A Python regression is caught by CI before merge.
