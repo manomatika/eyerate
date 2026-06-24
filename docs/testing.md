@@ -42,6 +42,6 @@ eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS stalenes
 
 1. matika's exact locked runtime deps (`uv export --frozen --no-dev` from matika's lock).
 2. eyerate's runtime deps (`uv pip install -r eyerate/pyproject.toml`).
-3. eyerate's test tooling from the canonical `[dependency-groups] dev` (`uv pip install --directory eyerate --group dev`), which includes `httpx2`, `pytest`, and `pytest-asyncio`.
+3. eyerate's test tooling from the canonical `[dependency-groups] dev` (`cd eyerate && uv pip install --python ../.venv/bin/python --group dev`), which includes `httpx2`, `pytest`, and `pytest-asyncio`. The subshell `cd` is required because `--group` resolves `pyproject.toml` from the current directory and the workspace-root venv must be referenced as `../.venv`.
 
 It then sets `PYTHONPATH=src:../matika/src` and runs `../.venv/bin/python -m pytest tests/ -v`. The `dev` group in `pyproject.toml` is the single source of truth for eyerate's test tooling — no hardcoded package list in the workflow. A Python regression is caught by CI before merge.

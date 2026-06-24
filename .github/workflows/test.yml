@@ -51,7 +51,7 @@ jobs:
             | grep -v "^-e " > /tmp/matika-locked.txt
           uv pip install --python .venv/bin/python -r /tmp/matika-locked.txt
           uv pip install --python .venv/bin/python -r eyerate/pyproject.toml
-          uv pip install --python .venv/bin/python --directory eyerate --group dev
+          (cd eyerate && uv pip install --python ../.venv/bin/python --group dev)
 
       - name: Run pytest
         working-directory: eyerate
