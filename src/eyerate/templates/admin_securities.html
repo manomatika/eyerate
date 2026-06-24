@@ -17,6 +17,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+    <div id="securities-list" class="securities-table" hidden aria-hidden="true"></div>
+
     <!-- Hidden form for actual submission -->
     <form id="action-form" method="post" style="display:none;">
         {% for field in metadata.maintenance_panel.fields %}

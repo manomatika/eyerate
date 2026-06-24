@@ -221,3 +221,40 @@ def test_eyerate_screens_service_no_duplicate_ids(tmp_path):
     # Must not raise
     result = loader.load_screens()
     assert isinstance(result, dict)
+
+
+# ---------------------------------------------------------------------------
+# DOM test hooks — verify markers exist as real attributes in templates
+# ---------------------------------------------------------------------------
+
+_TEMPLATES_DIR = _REPO_ROOT / "src" / "eyerate" / "templates"
+ADMIN_TEMPLATE = _TEMPLATES_DIR / "eyerate_admin.html"
+SECURITIES_TEMPLATE = _TEMPLATES_DIR / "admin_securities.html"
+
+
+def test_eyerate_admin_form_has_id_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="eyerate-admin-form"' in content, (
+        "eyerate_admin.html: form is missing id='eyerate-admin-form'"
+    )
+
+
+def test_eyerate_admin_fieldset_has_class_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'class="admin-provider-section"' in content, (
+        "eyerate_admin.html: fieldset is missing class='admin-provider-section'"
+    )
+
+
+def test_securities_template_has_securities_list_id():
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="securities-list"' in content, (
+        "admin_securities.html: missing id='securities-list' marker element"
+    )
+
+
+def test_securities_template_has_securities_table_class():
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'class="securities-table"' in content, (
+        "admin_securities.html: missing class='securities-table' marker element"
+    )

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "functional_tests": [
+    {
+      "test_id": "eyerate:lookup_voo",
+      "description": "VOO symbol lookup returns HTTP 200 with VOO data from the securities lookup endpoint",
+      "module": "eyerate_functional_tests",
+      "function": "test_lookup_voo",
+      "tags": ["network"]
+    },
+    {
+      "test_id": "eyerate:keyless_finnhub_502",
+      "description": "Finnhub configured with no API key returns HTTP 502 from the lookup endpoint",
+      "module": "eyerate_functional_tests",
+      "function": "test_keyless_finnhub_502",
+      "tags": ["network"]
+    }
+  ]
+}
