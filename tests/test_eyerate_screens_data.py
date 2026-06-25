@@ -221,3 +221,53 @@ def test_eyerate_screens_service_no_duplicate_ids(tmp_path):
     # Must not raise
     result = loader.load_screens()
     assert isinstance(result, dict)
+
+
+# ---------------------------------------------------------------------------
+# DOM test hooks — verify markers exist as real attributes in templates
+# ---------------------------------------------------------------------------
+
+_TEMPLATES_DIR = _REPO_ROOT / "src" / "eyerate" / "templates"
+ADMIN_TEMPLATE = _TEMPLATES_DIR / "eyerate_admin.html"
+SECURITIES_TEMPLATE = _TEMPLATES_DIR / "admin_securities.html"
+
+
+def test_eyerate_admin_form_has_id_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="eyerate-admin-form"' in content, (
+        "eyerate_admin.html: form is missing id='eyerate-admin-form'"
+    )
+
+
+def test_eyerate_admin_fieldset_has_class_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'class="admin-provider-section"' in content, (
+        "eyerate_admin.html: fieldset is missing class='admin-provider-section'"
+    )
+
+
+def test_securities_template_has_action_form_id():
+    """admin_securities.html renders the real #action-form submission form.
+
+    This is a genuine, load-bearing structural element of the securities
+    maintenance screen (the POST form carrying the maintenance fields),
+    rendered unconditionally — not a hidden/empty decoy hook.
+    """
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="action-form"' in content, (
+        "admin_securities.html: missing id='action-form' marker element"
+    )
+
+
+def test_securities_template_has_lookup_modal_id():
+    """admin_securities.html renders the real #lookup-modal element.
+
+    The Financial Security Lookup modal is securities-specific and genuinely
+    load-bearing — it is driven by dialogs/lookup-dialog.js
+    (document.getElementById('lookup-modal')) — rendered unconditionally, not a
+    hidden/empty decoy hook.
+    """
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="lookup-modal"' in content, (
+        "admin_securities.html: missing id='lookup-modal' marker element"
+    )

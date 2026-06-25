@@ -5,10 +5,10 @@
 {% block content %}
 <h1>{{ t.heading_eyerate_admin or "EyeRate Administration" }}</h1>
 
-<form method="post" action="/eyerate/admin">
+<form method="post" action="/eyerate/admin" id="eyerate-admin-form">
   <input type="hidden" name="csrf_token" value="{{ request.session.get('csrf_token', '') }}">
 
-  <fieldset>
+  <fieldset class="admin-provider-section">
     <legend>Financial Data Provider</legend>
 
     <label>
