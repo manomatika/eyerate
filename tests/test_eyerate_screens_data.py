@@ -279,18 +279,19 @@ def test_securities_template_has_lookup_modal_id():
 # b2 enriches eyerate:securities_list to drive the read-only lookup flow.
 # b3 adds eyerate:securities_lookup_error, a SEPARATE screen (unique id, same
 # route) that configures keyless finnhub and asserts the in-dialog error. Because
-# configuring keyless finnhub MUTATES server-side provider config, that flow is
-# NOT order-independent: it would poison any working-lookup screen that ran after
-# it in the same single tier-b boot. It is therefore placed LAST in the file so
-# it poisons nothing that matters (L3 runs in isolated reboots; tier-b ends here).
+# configuring keyless finnhub MUTATES server-side provider config, the b3 flow
+# ARRANGES that mutation at the start AND RESETS the provider back to the default
+# (yahoo) via the admin form at the end of its OWN step list. Known-initial-state
+# in, known-initial-state out: the screen poisons nothing regardless of run order,
+# so there is no "must run last" ordering crutch.
 #
 # Selectors used by the steps are grounded in real DOM hooks:
 #   - #lookup-search-input / #btn-lookup-search / #btn-ok-lookup / #lookup-modal
 #     / #action-form           → admin_securities.html (eyerate template)
 #   - .lookup-result-row / .lookup-error
 #                              → dialogs/lookup-dialog.js (eyerate-owned JS)
-#   - name="endpoint" / value="finnhub" / name="api_key" / type="submit"
-#                              → eyerate_admin.html (eyerate template)
+#   - name="endpoint" / value="finnhub" / value="yahoo" / name="api_key"
+#     / type="submit"          → eyerate_admin.html (eyerate template)
 #   - #field-symbol / .btn-lookup → rendered by matika's maintenance base
 #     template from eyerate's metadata: the 'symbol' field declares has_lookup
 #     (asserted against the metadata file below).
@@ -388,14 +389,18 @@ def test_lookup_error_screen_exists_and_is_well_formed():
 
 
 def test_lookup_error_screen_drives_keyless_finnhub_error_flow():
-    """b3: configure keyless finnhub via the admin form, then assert the visible
-    in-dialog error row and the absence of result rows."""
+    """b3: ARRANGE keyless finnhub via the admin form, ASSERT the visible
+    in-dialog error row and the absence of result rows, then RESET the provider
+    back to the default (yahoo) via the admin form — all within the screen's own
+    step list, in order."""
     pairs = _step_pairs(_get_screen(LOOKUP_ERROR_SCREEN_ID))
     for expected in [
+        # ARRANGE: select keyless finnhub.
         ("navigate", "/eyerate/admin"),
         ("click", 'input[name="endpoint"][value="finnhub"]'),
         ("fill", 'input[name="api_key"]'),
         ("click", '#eyerate-admin-form button[type="submit"]'),
+        # ACT + ASSERT: drive the lookup and observe the error.
         ("navigate", "/eyerate/securities"),
         ("click", "#btn-new"),
         ("click", ".btn-lookup"),
@@ -403,21 +408,29 @@ def test_lookup_error_screen_drives_keyless_finnhub_error_flow():
         ("click", "#btn-lookup-search"),
         ("assert_present", ".lookup-error"),
         ("assert_absent", ".lookup-result-row"),
+        # RESET: restore the default (yahoo) provider.
+        ("navigate", "/eyerate/admin"),
+        ("click", 'input[name="endpoint"][value="yahoo"]'),
+        ("click", '#eyerate-admin-form button[type="submit"]'),
     ]:
         assert expected in pairs, f"lookup_error screen missing step {expected}"
 
 
-def test_lookup_error_screen_is_last_to_avoid_poisoning():
-    """b3 ordering constraint: the keyless-finnhub error screen MUTATES
-    server-side provider config, so it must run AFTER all read-only screens. It
-    is placed LAST in the file (after eyerate:admin and after the working
-    securities_list lookup flow) so it poisons nothing that matters."""
-    ids = [e.get("screen_id") for e in load_screens_json()["screens"]]
-    assert ids[-1] == LOOKUP_ERROR_SCREEN_ID, (
-        "lookup_error screen must be the LAST entry in eyerate_screens.json"
+def test_lookup_error_screen_resets_provider_to_default_at_end():
+    """b3 order-independence contract: the keyless-finnhub error screen MUTATES
+    server-side provider config, so it self-resets the provider to the default
+    (yahoo) as the FINAL action of its own step list. Known-initial-state in,
+    known-initial-state out — the screen poisons nothing regardless of run order,
+    replacing the old 'must run last' ordering crutch."""
+    pairs = _step_pairs(_get_screen(LOOKUP_ERROR_SCREEN_ID))
+    assert pairs[-3:] == [
+        ("navigate", "/eyerate/admin"),
+        ("click", 'input[name="endpoint"][value="yahoo"]'),
+        ("click", '#eyerate-admin-form button[type="submit"]'),
+    ], (
+        "lookup_error screen must END by resetting the provider to yahoo via the "
+        f"admin form; last steps were: {pairs[-3:]}"
     )
-    assert ids.index(LOOKUP_ERROR_SCREEN_ID) > ids.index(LOOKUP_SCREEN_ID)
-    assert ids.index(LOOKUP_ERROR_SCREEN_ID) > ids.index("eyerate:admin")
 
 
 # --- DOM hooks for the NEW selectors introduced by b2/b3 ---
@@ -463,6 +476,13 @@ def test_admin_template_has_finnhub_endpoint_radio_hook():
     content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
     assert 'name="endpoint"' in content and 'value="finnhub"' in content, (
         "eyerate_admin.html: missing finnhub endpoint radio (b3 provider select)"
+    )
+
+
+def test_admin_template_has_yahoo_endpoint_radio_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'name="endpoint"' in content and 'value="yahoo"' in content, (
+        "eyerate_admin.html: missing yahoo endpoint radio (b3 reset-to-default select)"
     )
 
 

@@ -66,11 +66,20 @@ def test_keyless_finnhub_declared():
     ids = {t["test_id"] for t in _load_json()["functional_tests"]}
     assert "eyerate:keyless_finnhub_502" in ids
 
-def test_search_voo_declared_before_keyless_finnhub():
-    """The read-only search test must precede keyless_finnhub_502, which mutates
-    server-side provider config and would poison a later search."""
-    ids = [t["test_id"] for t in _load_json()["functional_tests"]]
-    assert ids.index("eyerate:search_voo") < ids.index("eyerate:keyless_finnhub_502")
+def test_functional_tests_declare_no_order_dependency():
+    """Order-independence contract: the manifest declares no run-order field.
+
+    Each functional test self-arranges its precondition and self-resets to the
+    default provider via guaranteed-run teardown, so declaration order in the
+    JSON carries no semantics. This replaces the old 'search must precede
+    keyless_finnhub' ordering crutch.
+    """
+    for entry in _load_json()["functional_tests"]:
+        for ordering_key in ("order", "run_after", "run_before", "depends_on"):
+            assert ordering_key not in entry, (
+                f"{entry['test_id']} declares ordering key {ordering_key!r}; "
+                f"functional tests must be order-independent"
+            )
 
 def test_all_required_fields_present():
     for entry in _load_json()["functional_tests"]:
@@ -114,79 +123,155 @@ def test_no_undeclared_test_functions():
     assert not undeclared, f"Undeclared test_* in module: {undeclared}"
 
 # --- Unit tests for function implementations (mock session) ---
+#
+# Each functional test now follows ARRANGE (set provider via admin form) →
+# ASSERT (body) → RESET (provider back to yahoo, in a guaranteed-run finally).
+# The mock GET side_effect lists therefore interleave admin-form fetches (for the
+# CSRF token in both arrange and reset) with the endpoint call under test:
+#   lookup/search:  [arrange admin html, endpoint resp, reset admin html]
+#   keyless_finnhub:[arrange admin html, lookup resp,   reset admin html]
+# session.post is the admin save, called once on arrange and once on reset.
+
+_ADMIN_HTML = '<input type="hidden" name="csrf_token" value="tok">'
+
+
+def _post_endpoints(session):
+    """The 'endpoint' value of every admin-save POST, in call order."""
+    return [
+        (call.kwargs.get("data") or {}).get("endpoint")
+        for call in session.post.call_args_list
+    ]
+
+
+def _assert_reset_to_yahoo(session):
+    """The final admin-save POST must reset the provider to the default (yahoo)."""
+    endpoints = _post_endpoints(session)
+    assert endpoints, "expected at least one admin-save POST (reset)"
+    assert endpoints[-1] == "yahoo", (
+        f"expected the final reset POST to set endpoint=yahoo; got {endpoints}"
+    )
+
 
 def test_lookup_voo_passes_on_200_with_voo():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(200, {"symbol": "VOO", "name": "Vanguard"})
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),  # arrange CSRF
+        _make_json_resp(200, {"symbol": "VOO", "name": "Vanguard"}),  # lookup
+        _make_text_resp(200, _ADMIN_HTML),  # reset CSRF
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     mod.test_lookup_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_lookup_voo_fails_on_non_200():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(500, {})
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),  # arrange CSRF
+        _make_json_resp(500, {}),           # lookup → assertion fails
+        _make_text_resp(200, _ADMIN_HTML),  # reset CSRF (guaranteed-run)
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError, match="200"):
         mod.test_lookup_voo(base_url="http://localhost:8000", session=session)
+    # Guaranteed-run teardown: reset must fire even though the body assertion failed.
+    _assert_reset_to_yahoo(session)
 
 def test_lookup_voo_fails_if_voo_absent():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(200, {"symbol": "AAPL"})
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),
+        _make_json_resp(200, {"symbol": "AAPL"}),
+        _make_text_resp(200, _ADMIN_HTML),
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError):
         mod.test_lookup_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_search_voo_passes_on_200_with_voo():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(
-        200,
-        [
-            {"symbol": "VOO", "name": "Vanguard S&P 500 ETF", "type": "ETF", "exchange": "PCX"},
-            {"symbol": "VOOG", "name": "Vanguard S&P 500 Growth ETF", "type": "ETF", "exchange": "PCX"},
-        ],
-    )
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),
+        _make_json_resp(
+            200,
+            [
+                {"symbol": "VOO", "name": "Vanguard S&P 500 ETF", "type": "ETF", "exchange": "PCX"},
+                {"symbol": "VOOG", "name": "Vanguard S&P 500 Growth ETF", "type": "ETF", "exchange": "PCX"},
+            ],
+        ),
+        _make_text_resp(200, _ADMIN_HTML),
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     mod.test_search_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_search_voo_fails_on_non_200():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(502, {"detail": "lookup failed"})
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),
+        _make_json_resp(502, {"detail": "lookup failed"}),
+        _make_text_resp(200, _ADMIN_HTML),
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError, match="200"):
         mod.test_search_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_search_voo_fails_if_voo_absent():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(200, [{"symbol": "AAPL", "name": "Apple Inc."}])
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),
+        _make_json_resp(200, [{"symbol": "AAPL", "name": "Apple Inc."}]),
+        _make_text_resp(200, _ADMIN_HTML),
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError):
         mod.test_search_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_search_voo_fails_if_not_a_list():
     mod = _get_module()
     session = MagicMock()
-    session.get.return_value = _make_json_resp(200, {"symbol": "VOO"})
+    session.get.side_effect = [
+        _make_text_resp(200, _ADMIN_HTML),
+        _make_json_resp(200, {"symbol": "VOO"}),
+        _make_text_resp(200, _ADMIN_HTML),
+    ]
+    session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError, match="list"):
         mod.test_search_voo(base_url="http://localhost:8000", session=session)
+    _assert_reset_to_yahoo(session)
 
 def test_keyless_finnhub_passes_on_502():
     mod = _get_module()
     session = MagicMock()
-    admin_html = '<input type="hidden" name="csrf_token" value="tok">'
     session.get.side_effect = [
-        _make_text_resp(200, admin_html),
-        _make_text_resp(502, '{"detail": "lookup failed: Finnhub search HTTP 401"}'),
+        _make_text_resp(200, _ADMIN_HTML),  # arrange CSRF (set finnhub)
+        _make_text_resp(502, '{"detail": "lookup failed: Finnhub search HTTP 401"}'),  # lookup
+        _make_text_resp(200, _ADMIN_HTML),  # reset CSRF
     ]
     session.post.return_value = _make_text_resp(200, "ok")
     mod.test_keyless_finnhub_502(base_url="http://localhost:8000", session=session)
+    # Arrange POSTs finnhub, reset POSTs yahoo.
+    assert _post_endpoints(session) == ["finnhub", "yahoo"]
 
 def test_keyless_finnhub_fails_on_200_lookup():
     mod = _get_module()
     session = MagicMock()
-    admin_html = '<input type="hidden" name="csrf_token" value="tok">'
     session.get.side_effect = [
-        _make_text_resp(200, admin_html),
-        _make_json_resp(200, {"symbol": "VOO"}),
+        _make_text_resp(200, _ADMIN_HTML),  # arrange CSRF (set finnhub)
+        _make_json_resp(200, {"symbol": "VOO"}),  # lookup → assertion fails
+        _make_text_resp(200, _ADMIN_HTML),  # reset CSRF (guaranteed-run)
     ]
     session.post.return_value = _make_text_resp(200, "ok")
     with pytest.raises(AssertionError, match="502"):
         mod.test_keyless_finnhub_502(base_url="http://localhost:8000", session=session)
+    # Guaranteed-run teardown: the keyless mutation is reset to yahoo even though
+    # the body assertion failed.
+    _assert_reset_to_yahoo(session)
