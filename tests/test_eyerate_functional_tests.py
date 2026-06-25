@@ -58,9 +58,19 @@ def test_lookup_voo_declared():
     ids = {t["test_id"] for t in _load_json()["functional_tests"]}
     assert "eyerate:lookup_voo" in ids
 
+def test_search_voo_declared():
+    ids = {t["test_id"] for t in _load_json()["functional_tests"]}
+    assert "eyerate:search_voo" in ids
+
 def test_keyless_finnhub_declared():
     ids = {t["test_id"] for t in _load_json()["functional_tests"]}
     assert "eyerate:keyless_finnhub_502" in ids
+
+def test_search_voo_declared_before_keyless_finnhub():
+    """The read-only search test must precede keyless_finnhub_502, which mutates
+    server-side provider config and would poison a later search."""
+    ids = [t["test_id"] for t in _load_json()["functional_tests"]]
+    assert ids.index("eyerate:search_voo") < ids.index("eyerate:keyless_finnhub_502")
 
 def test_all_required_fields_present():
     for entry in _load_json()["functional_tests"]:
@@ -83,6 +93,10 @@ def test_module_importable():
 def test_lookup_voo_callable():
     mod = _get_module()
     assert callable(getattr(mod, "test_lookup_voo", None))
+
+def test_search_voo_callable():
+    mod = _get_module()
+    assert callable(getattr(mod, "test_search_voo", None))
 
 def test_keyless_finnhub_callable():
     mod = _get_module()
@@ -120,6 +134,39 @@ def test_lookup_voo_fails_if_voo_absent():
     session.get.return_value = _make_json_resp(200, {"symbol": "AAPL"})
     with pytest.raises(AssertionError):
         mod.test_lookup_voo(base_url="http://localhost:8000", session=session)
+
+def test_search_voo_passes_on_200_with_voo():
+    mod = _get_module()
+    session = MagicMock()
+    session.get.return_value = _make_json_resp(
+        200,
+        [
+            {"symbol": "VOO", "name": "Vanguard S&P 500 ETF", "type": "ETF", "exchange": "PCX"},
+            {"symbol": "VOOG", "name": "Vanguard S&P 500 Growth ETF", "type": "ETF", "exchange": "PCX"},
+        ],
+    )
+    mod.test_search_voo(base_url="http://localhost:8000", session=session)
+
+def test_search_voo_fails_on_non_200():
+    mod = _get_module()
+    session = MagicMock()
+    session.get.return_value = _make_json_resp(502, {"detail": "lookup failed"})
+    with pytest.raises(AssertionError, match="200"):
+        mod.test_search_voo(base_url="http://localhost:8000", session=session)
+
+def test_search_voo_fails_if_voo_absent():
+    mod = _get_module()
+    session = MagicMock()
+    session.get.return_value = _make_json_resp(200, [{"symbol": "AAPL", "name": "Apple Inc."}])
+    with pytest.raises(AssertionError):
+        mod.test_search_voo(base_url="http://localhost:8000", session=session)
+
+def test_search_voo_fails_if_not_a_list():
+    mod = _get_module()
+    session = MagicMock()
+    session.get.return_value = _make_json_resp(200, {"symbol": "VOO"})
+    with pytest.raises(AssertionError, match="list"):
+        mod.test_search_voo(base_url="http://localhost:8000", session=session)
 
 def test_keyless_finnhub_passes_on_502():
     mod = _get_module()

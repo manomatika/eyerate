@@ -9,6 +9,13 @@
       "tags": ["network"]
     },
     {
+      "test_id": "eyerate:search_voo",
+      "description": "VOO symbol search returns HTTP 200 with a result list containing the VOO symbol from the securities search endpoint",
+      "module": "eyerate_functional_tests",
+      "function": "test_search_voo",
+      "tags": ["network"]
+    },
+    {
       "test_id": "eyerate:keyless_finnhub_502",
       "description": "Finnhub configured with no API key returns HTTP 502 from the lookup endpoint",
       "module": "eyerate_functional_tests",

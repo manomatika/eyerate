@@ -27,6 +27,32 @@ def test_lookup_voo(base_url: str, session) -> None:
     )
 
 
+def test_search_voo(base_url: str, session) -> None:
+    """VOO symbol search returns HTTP 200 with VOO present in the result list.
+
+    Exercises GET /eyerate/securities/search?q=VOO. The endpoint returns
+    ``provider.search(q)`` as JSON: a list of ``{symbol, name, type, exchange}``
+    result dicts (see endpoints.py). The default yahoo provider needs no API key,
+    so a clean boot returns a list containing the VOO symbol.
+
+    Ordering note: this read-only search test runs BEFORE test_keyless_finnhub_502,
+    which mutates the server-side provider config (keyless finnhub) and would
+    otherwise poison this lookup.
+    """
+    resp = session.get(f"{base_url}/eyerate/securities/search", params={"q": "VOO"})
+    assert resp.status_code == 200, (
+        f"Expected 200 from /eyerate/securities/search?q=VOO, got {resp.status_code}"
+    )
+    data = resp.json()
+    assert isinstance(data, list), (
+        f"Expected a JSON list from /eyerate/securities/search; got {type(data).__name__}: {data!r}"
+    )
+    symbols = {(item.get("symbol") or "").upper() for item in data if isinstance(item, dict)}
+    assert "VOO" in symbols, (
+        f"Expected 'VOO' among search result symbols; got: {data}"
+    )
+
+
 def test_keyless_finnhub_502(base_url: str, session) -> None:
     """Finnhub with no API key → HTTP 502 from the securities lookup endpoint."""
     # 1. Fetch admin page to get CSRF token.

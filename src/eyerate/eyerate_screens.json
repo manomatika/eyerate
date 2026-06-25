@@ -7,7 +7,17 @@
       "route": "/eyerate/securities",
       "markers": ["#action-form", "#lookup-modal"],
       "steps": [
-        {"verb": "navigate", "target": "/eyerate/securities"}
+        {"verb": "navigate", "target": "/eyerate/securities"},
+        {"verb": "click", "target": "#btn-new"},
+        {"verb": "click", "target": ".btn-lookup"},
+        {"verb": "wait_for", "target": "#lookup-modal"},
+        {"verb": "fill", "target": "#lookup-search-input", "value": "VOO"},
+        {"verb": "click", "target": "#btn-lookup-search"},
+        {"verb": "wait_for", "target": ".lookup-result-row"},
+        {"verb": "assert_present", "target": ".lookup-result-row"},
+        {"verb": "click", "target": ".lookup-result-row"},
+        {"verb": "click", "target": "#btn-ok-lookup"},
+        {"verb": "assert_value", "target": "#field-symbol", "value": "VOO"}
       ]
     },
     {
@@ -72,6 +82,27 @@
       "type": "not_a_screen",
       "route": "/eyerate/securities/test_endpoint",
       "reason": "POST JSON API endpoint (SETTINGS tag); returns endpoint test result, not an HTML screen"
+    },
+    {
+      "screen_id": "eyerate:securities_lookup_error",
+      "type": "screen",
+      "route": "/eyerate/securities",
+      "markers": ["#action-form", "#lookup-modal"],
+      "steps": [
+        {"verb": "navigate", "target": "/eyerate/admin"},
+        {"verb": "click", "target": "input[name=\"endpoint\"][value=\"finnhub\"]"},
+        {"verb": "fill", "target": "input[name=\"api_key\"]", "value": ""},
+        {"verb": "click", "target": "#eyerate-admin-form button[type=\"submit\"]"},
+        {"verb": "navigate", "target": "/eyerate/securities"},
+        {"verb": "click", "target": "#btn-new"},
+        {"verb": "click", "target": ".btn-lookup"},
+        {"verb": "wait_for", "target": "#lookup-modal"},
+        {"verb": "fill", "target": "#lookup-search-input", "value": "VOO"},
+        {"verb": "click", "target": "#btn-lookup-search"},
+        {"verb": "wait_for", "target": ".lookup-error"},
+        {"verb": "assert_present", "target": ".lookup-error"},
+        {"verb": "assert_absent", "target": ".lookup-result-row"}
+      ]
     }
   ]
 }

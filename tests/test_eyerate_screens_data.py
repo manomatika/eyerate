@@ -271,3 +271,224 @@ def test_securities_template_has_lookup_modal_id():
     assert 'id="lookup-modal"' in content, (
         "admin_securities.html: missing id='lookup-modal' marker element"
     )
+
+
+# ---------------------------------------------------------------------------
+# Interactive step coverage (b2 / b3)
+#
+# b2 enriches eyerate:securities_list to drive the read-only lookup flow.
+# b3 adds eyerate:securities_lookup_error, a SEPARATE screen (unique id, same
+# route) that configures keyless finnhub and asserts the in-dialog error. Because
+# configuring keyless finnhub MUTATES server-side provider config, that flow is
+# NOT order-independent: it would poison any working-lookup screen that ran after
+# it in the same single tier-b boot. It is therefore placed LAST in the file so
+# it poisons nothing that matters (L3 runs in isolated reboots; tier-b ends here).
+#
+# Selectors used by the steps are grounded in real DOM hooks:
+#   - #lookup-search-input / #btn-lookup-search / #btn-ok-lookup / #lookup-modal
+#     / #action-form           → admin_securities.html (eyerate template)
+#   - .lookup-result-row / .lookup-error
+#                              → dialogs/lookup-dialog.js (eyerate-owned JS)
+#   - name="endpoint" / value="finnhub" / name="api_key" / type="submit"
+#                              → eyerate_admin.html (eyerate template)
+#   - #field-symbol / .btn-lookup → rendered by matika's maintenance base
+#     template from eyerate's metadata: the 'symbol' field declares has_lookup
+#     (asserted against the metadata file below).
+#   - #btn-new                 → matika maintenance base template (framework-owned
+#     action button that reveals .btn-lookup by entering create mode).
+# ---------------------------------------------------------------------------
+
+LOOKUP_SCREEN_ID = "eyerate:securities_list"
+LOOKUP_ERROR_SCREEN_ID = "eyerate:securities_lookup_error"
+LOOKUP_DIALOG_JS = (
+    _REPO_ROOT / "src" / "eyerate" / "static" / "js" / "dialogs" / "lookup-dialog.js"
+)
+METADATA_FILE = (
+    _REPO_ROOT / "src" / "eyerate" / "metadata" / "securities_maint_activity_metadata.json"
+)
+
+
+def _get_screen(screen_id):
+    for entry in load_screens_json()["screens"]:
+        if entry.get("screen_id") == screen_id:
+            return entry
+    raise AssertionError(f"Screen {screen_id!r} not found in eyerate_screens.json")
+
+
+def _step_pairs(entry):
+    return [(s.get("verb"), s.get("target")) for s in entry.get("steps", [])]
+
+
+def test_every_screen_step_has_a_target():
+    """Every interaction step (all allowed verbs) must declare a non-empty target."""
+    data = load_screens_json()
+    for entry in data["screens"]:
+        if entry.get("type") != "screen":
+            continue
+        sid = entry.get("screen_id", "<no id>")
+        for step in entry.get("steps", []):
+            assert step.get("target"), (
+                f"Screen '{sid}' has a {step.get('verb')!r} step with no 'target'"
+            )
+
+
+def test_fill_and_assert_value_steps_declare_a_value():
+    """fill and assert_value steps must declare a 'value' field."""
+    data = load_screens_json()
+    for entry in data["screens"]:
+        if entry.get("type") != "screen":
+            continue
+        sid = entry.get("screen_id", "<no id>")
+        for step in entry.get("steps", []):
+            if step.get("verb") in ("fill", "assert_value"):
+                assert "value" in step, (
+                    f"Screen '{sid}' has a {step['verb']!r} step on "
+                    f"{step.get('target')!r} with no 'value'"
+                )
+
+
+def test_securities_list_drives_interactive_lookup_flow():
+    """b2: securities_list drives the real read-only lookup flow end to end."""
+    pairs = _step_pairs(_get_screen(LOOKUP_SCREEN_ID))
+    for expected in [
+        ("navigate", "/eyerate/securities"),
+        ("click", "#btn-new"),
+        ("click", ".btn-lookup"),
+        ("wait_for", "#lookup-modal"),
+        ("fill", "#lookup-search-input"),
+        ("click", "#btn-lookup-search"),
+        ("wait_for", ".lookup-result-row"),
+        ("assert_present", ".lookup-result-row"),
+        ("click", ".lookup-result-row"),
+        ("click", "#btn-ok-lookup"),
+        ("assert_value", "#field-symbol"),
+    ]:
+        assert expected in pairs, f"securities_list missing step {expected}"
+
+
+def test_securities_list_fills_and_asserts_voo():
+    """b2: the search field is filled with VOO and the symbol field is asserted VOO."""
+    entry = _get_screen(LOOKUP_SCREEN_ID)
+    fills = {s["target"]: s.get("value") for s in entry["steps"] if s["verb"] == "fill"}
+    assert fills.get("#lookup-search-input") == "VOO"
+    asserts = {
+        s["target"]: s.get("value") for s in entry["steps"] if s["verb"] == "assert_value"
+    }
+    assert asserts.get("#field-symbol") == "VOO"
+
+
+def test_lookup_error_screen_exists_and_is_well_formed():
+    """b3: the keyless-finnhub error screen exists with required markers + navigate."""
+    entry = _get_screen(LOOKUP_ERROR_SCREEN_ID)
+    assert entry.get("type") == "screen"
+    assert entry.get("route") == "/eyerate/securities"
+    assert entry.get("markers"), "lookup_error screen must declare markers"
+    verbs = [s.get("verb") for s in entry.get("steps", [])]
+    assert "navigate" in verbs, "lookup_error screen must have a navigate step"
+
+
+def test_lookup_error_screen_drives_keyless_finnhub_error_flow():
+    """b3: configure keyless finnhub via the admin form, then assert the visible
+    in-dialog error row and the absence of result rows."""
+    pairs = _step_pairs(_get_screen(LOOKUP_ERROR_SCREEN_ID))
+    for expected in [
+        ("navigate", "/eyerate/admin"),
+        ("click", 'input[name="endpoint"][value="finnhub"]'),
+        ("fill", 'input[name="api_key"]'),
+        ("click", '#eyerate-admin-form button[type="submit"]'),
+        ("navigate", "/eyerate/securities"),
+        ("click", "#btn-new"),
+        ("click", ".btn-lookup"),
+        ("fill", "#lookup-search-input"),
+        ("click", "#btn-lookup-search"),
+        ("assert_present", ".lookup-error"),
+        ("assert_absent", ".lookup-result-row"),
+    ]:
+        assert expected in pairs, f"lookup_error screen missing step {expected}"
+
+
+def test_lookup_error_screen_is_last_to_avoid_poisoning():
+    """b3 ordering constraint: the keyless-finnhub error screen MUTATES
+    server-side provider config, so it must run AFTER all read-only screens. It
+    is placed LAST in the file (after eyerate:admin and after the working
+    securities_list lookup flow) so it poisons nothing that matters."""
+    ids = [e.get("screen_id") for e in load_screens_json()["screens"]]
+    assert ids[-1] == LOOKUP_ERROR_SCREEN_ID, (
+        "lookup_error screen must be the LAST entry in eyerate_screens.json"
+    )
+    assert ids.index(LOOKUP_ERROR_SCREEN_ID) > ids.index(LOOKUP_SCREEN_ID)
+    assert ids.index(LOOKUP_ERROR_SCREEN_ID) > ids.index("eyerate:admin")
+
+
+# --- DOM hooks for the NEW selectors introduced by b2/b3 ---
+
+def test_securities_template_has_lookup_search_input_hook():
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="lookup-search-input"' in content, (
+        "admin_securities.html: missing id='lookup-search-input' (b2/b3 search field)"
+    )
+
+
+def test_securities_template_has_lookup_search_button_hook():
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="btn-lookup-search"' in content, (
+        "admin_securities.html: missing id='btn-lookup-search' (b2/b3 search trigger)"
+    )
+
+
+def test_securities_template_has_lookup_ok_button_hook():
+    content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="btn-ok-lookup"' in content, (
+        "admin_securities.html: missing id='btn-ok-lookup' (b2 row-select confirm)"
+    )
+
+
+def test_lookup_dialog_js_renders_result_row_class():
+    content = LOOKUP_DIALOG_JS.read_text(encoding="utf-8")
+    assert "lookup-result-row" in content, (
+        "lookup-dialog.js: result rows must carry class='lookup-result-row' (b2/b3)"
+    )
+
+
+def test_lookup_dialog_js_renders_error_row_class():
+    """The b3 error assertion targets .lookup-error; the lookup dialog must render
+    that class on its error row so the screen step and the DOM cannot drift."""
+    content = LOOKUP_DIALOG_JS.read_text(encoding="utf-8")
+    assert 'class="lookup-error"' in content, (
+        "lookup-dialog.js: error row must carry class='lookup-error' (b3)"
+    )
+
+
+def test_admin_template_has_finnhub_endpoint_radio_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'name="endpoint"' in content and 'value="finnhub"' in content, (
+        "eyerate_admin.html: missing finnhub endpoint radio (b3 provider select)"
+    )
+
+
+def test_admin_template_has_api_key_input_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'name="api_key"' in content, (
+        "eyerate_admin.html: missing name='api_key' input (b3 keyless config)"
+    )
+
+
+def test_admin_template_has_submit_button_hook():
+    content = ADMIN_TEMPLATE.read_text(encoding="utf-8")
+    assert 'type="submit"' in content, (
+        "eyerate_admin.html: missing submit button (b3 admin save)"
+    )
+
+
+def test_symbol_field_declares_has_lookup_in_metadata():
+    """#field-symbol and .btn-lookup are rendered by matika's maintenance base
+    template from eyerate's metadata: the 'symbol' field declares has_lookup,
+    which produces id='field-symbol' plus the .btn-lookup button. This grounds
+    the two framework-rendered selectors used by b2/b3 against eyerate-owned data."""
+    meta = json.loads(METADATA_FILE.read_text(encoding="utf-8"))
+    fields = meta["maintenance_panel"]["fields"]
+    symbol = next((f for f in fields if f.get("name") == "symbol"), None)
+    assert symbol is not None, "metadata: no 'symbol' field in maintenance_panel"
+    assert symbol.get("has_lookup") is True, (
+        "metadata: 'symbol' field must declare has_lookup (renders #field-symbol + .btn-lookup)"
+    )
