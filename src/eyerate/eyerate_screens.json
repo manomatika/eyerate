@@ -5,7 +5,7 @@
       "screen_id": "eyerate:securities_list",
       "type": "screen",
       "route": "/eyerate/securities",
-      "markers": [".securities-table", "#securities-list"],
+      "markers": ["#action-form", "#lookup-modal"],
       "steps": [
         {"verb": "navigate", "target": "/eyerate/securities"}
       ]

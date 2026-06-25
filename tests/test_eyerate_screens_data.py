@@ -246,15 +246,28 @@ def test_eyerate_admin_fieldset_has_class_hook():
     )
 
 
-def test_securities_template_has_securities_list_id():
+def test_securities_template_has_action_form_id():
+    """admin_securities.html renders the real #action-form submission form.
+
+    This is a genuine, load-bearing structural element of the securities
+    maintenance screen (the POST form carrying the maintenance fields),
+    rendered unconditionally — not a hidden/empty decoy hook.
+    """
     content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
-    assert 'id="securities-list"' in content, (
-        "admin_securities.html: missing id='securities-list' marker element"
+    assert 'id="action-form"' in content, (
+        "admin_securities.html: missing id='action-form' marker element"
     )
 
 
-def test_securities_template_has_securities_table_class():
+def test_securities_template_has_lookup_modal_id():
+    """admin_securities.html renders the real #lookup-modal element.
+
+    The Financial Security Lookup modal is securities-specific and genuinely
+    load-bearing — it is driven by dialogs/lookup-dialog.js
+    (document.getElementById('lookup-modal')) — rendered unconditionally, not a
+    hidden/empty decoy hook.
+    """
     content = SECURITIES_TEMPLATE.read_text(encoding="utf-8")
-    assert 'class="securities-table"' in content, (
-        "admin_securities.html: missing class='securities-table' marker element"
+    assert 'id="lookup-modal"' in content, (
+        "admin_securities.html: missing id='lookup-modal' marker element"
     )
