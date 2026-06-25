@@ -96,20 +96,18 @@ CLAUDE.md must never knowingly contain stale information. Whenever CLAUDE.md is 
 
 ## Commands
 
-**Run all tests** (requires `../matika` sibling directory):
+**Run all tests** — ONE command (requires `../matika` sibling directory):
 ```bash
-export SECRET_KEY="test-only-secret-key-never-use-in-production"
-export PYTHONPATH=src:../matika/src
-python -m pytest tests/
+scripts/run-tests.sh
 ```
 
-Note: `uv run pytest` is not the canonical invocation here — eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package. Set `PYTHONPATH` explicitly as shown above.
+`scripts/run-tests.sh` is the single canonical, DECLARED test environment. It builds the combined env in three layers — matika's locked runtime deps (`uv export --directory ../matika`), eyerate's runtime deps (`pyproject.toml`), and eyerate's `dev` group — into `.venv`, sets `SECRET_KEY` and `PYTHONPATH=src:../matika/src`, and runs `pytest tests/`. CI (`.github/workflows/test.yml`) invokes this same script, so the declared config IS the config that runs (no divergence). See [docs/testing.md](docs/testing.md) for the layering rationale and tier layout.
 
-**Run a single test:**
+Note: `uv run pytest` is not the canonical invocation here — eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package. The script sets this for you.
+
+**Run a single test** (extra pytest args pass through):
 ```bash
-export SECRET_KEY="test-only-secret-key-never-use-in-production"
-export PYTHONPATH=src:../matika/src
-python -m pytest tests/integration/test_securities.py::test_securities_crud
+scripts/run-tests.sh tests/integration/test_securities.py::test_securities_crud
 ```
 
 **Development workflow scripts:**
