@@ -101,7 +101,10 @@
         {"verb": "click", "target": "#btn-lookup-search"},
         {"verb": "wait_for", "target": ".lookup-error"},
         {"verb": "assert_present", "target": ".lookup-error"},
-        {"verb": "assert_absent", "target": ".lookup-result-row"}
+        {"verb": "assert_absent", "target": ".lookup-result-row"},
+        {"verb": "navigate", "target": "/eyerate/admin"},
+        {"verb": "click", "target": "input[name=\"endpoint\"][value=\"yahoo\"]"},
+        {"verb": "click", "target": "#eyerate-admin-form button[type=\"submit\"]"}
       ]
     }
   ]
