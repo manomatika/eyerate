@@ -106,7 +106,7 @@ export class LookupDialog {
             this.renderResults();
         }
         catch (err) {
-            this.resultsList.innerHTML = `<tr><td colspan="3" style="padding: 15px; color: #c00;">Error: ${err.message}</td></tr>`;
+            this.resultsList.innerHTML = `<tr class="lookup-error"><td colspan="3" style="padding: 15px; color: #c00;">Error: ${err.message}</td></tr>`;
         }
     }
     async performFetch(q) {
