@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 EyeRate is a **Matika AppLug** (plugin) — the reference implementation of the Matika plugin system. It adds financial security tracking (stocks, bonds, ETFs, mutual funds) to a Matika host application. It is not a standalone app; it runs inside Matika.
 
+## AppLug Trust & Testing Posture
+
+eyerate is the **reference applug** — trusted, org-authored. The model below is the ecosystem-wide posture applied from eyerate's perspective; the authority of record is `docs/ManoMatikaUseCases.md` in `manomatika/manomatika`.
+
+### Trust model (install-trust)
+
+- Installing an applug — via recipe at build time, or via future runtime applug loading — **is** the trust decision. matika treats every applug identically; there is no first-party/third-party distinction in mechanism.
+- Safeguards hinder bad behavior to the extent practical, with no claim a determined bad actor is stopped: an applug is in-process Python and cannot be prevented from reaching host primitives directly.
+- Dangerous host operations (network, filesystem, process, secrets) are expected to go **through matika APIs** — a reduced, documented, auditable safe-by-default surface. This is convention plus review, **not** a hard guarantee; never describe it as one.
+- ManoMatika-org applugs are trusted by provenance and live in a non-public org applug repo. The SDK only ever bundles the reference applug — **eyerate**, which is trusted by provenance (org-authored), consistent with install-trust.
+
+### Test execution is build automation, not a security boundary
+
+- The framework discovers each applug's tests through a known interface and runs them all automatically at build time, identically for every applug. There is no trust dimension, no sandbox, and no isolation around test execution.
+- WASM/Wasmtime/WASI isolation of applug code or tests is **out** — rejected on complexity, the security-critical runtime dependency it would introduce, and its inability to run the real product stack (compiled C/Rust extensions, sockets).
+
+### Three-layer testing model
+
+Keep these three layers distinct; never collapse them.
+
+- **L1 — own suite.** eyerate unit/integration-tests its own functions in its own suite (file layout under *Testing* in Architecture).
+- **L2 — generic structural harness.** Domain-blind "every declared screen routes, renders, and shows its markers." Applug-agnostic; matika owns the contract and ahimsa's gate runs it. eyerate declares its screens in `src/eyerate/eyerate_screens.json`.
+- **L3 — applug-authored functional tests.** eyerate authors functional tests; the product gate (ahimsa) invokes them generically through a contract. Who authors (the applug) is separate from who invokes (the generic gate); there is no isolation requirement. eyerate is the canonical reference implementation of this contract. Adoption is in flight via `manomatika/eyerate#63` (open, not yet merged to `main`).
+
 ## Working Style & Discipline
 
 This section captures the standing working rules across the manomatika ecosystem. **CLAUDE.md is authoritative for how a fresh Claude Code instance should operate in this repo; keep it current as practices evolve.** The terminal milestone of every release is `Documentation & Release Readiness`, which includes auditing and updating every CLAUDE.md against what actually shipped.
@@ -136,7 +160,7 @@ Source lives under `src/eyerate/ts/` (subdirs: `admin/`, `dialogs/`, `shared/`).
 
 ### Testing
 
-Tests require `../matika` as a sibling directory. Three tiers: `tests/conftest.py` (minimal shared), `tests/integration/` (stack-coupled), `tests/scripts/` (stack-independent). Full setup, layout, and CI gate detail: see `docs/testing.md`.
+Tests require `../matika` as a sibling directory. This is eyerate's **L1** suite (see *AppLug Trust & Testing Posture*); its file layout has three tiers — `tests/conftest.py` (minimal shared), `tests/integration/` (stack-coupled), `tests/scripts/` (stack-independent) — which are distinct from the L1/L2/L3 testing-model layers. Full setup, layout, and CI gate detail: see `docs/testing.md`.
 
 ### Locale
 
