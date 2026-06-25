@@ -24,24 +24,30 @@ The tier separation is enforced by directory structure. Do not collapse back to 
 
 ## Running the Suite
 
-**Environment matters.** The full suite is green on main, but the `tests/integration/` tier `exec_module`s matika's `conftest.py` resolved via a **sibling-clone relative path** (`../../../matika/tests/conftest.py` from `tests/integration/`). It only resolves when eyerate's checkout/worktree sits beside the matika clone (`~/dev/projects/eyerate` next to `~/dev/projects/matika`) **and** `PYTHONPATH` includes `../matika/src`. Run with:
+**One command.** The combined test environment (eyerate's runtime deps + the matika stack) is DECLARED and runnable through a single script:
 
 ```bash
-export SECRET_KEY="test-only-secret-key-never-use-in-production"
-export PYTHONPATH=src:../matika/src
-python -m pytest tests/        # full suite green
+scripts/run-tests.sh                  # builds the env if needed, then runs the full suite
+scripts/run-tests.sh -v               # extra pytest args pass through
+scripts/run-tests.sh tests/scripts/   # run a subset
 ```
 
-Note: `uv run pytest` is **not** the canonical invocation for eyerate. eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package. `uv run` does not set `PYTHONPATH`, so the integration tier will fail at collection. Always set `PYTHONPATH` explicitly as shown above.
+`scripts/run-tests.sh` is the single source of truth for the test environment. It performs the same three-layer install described under **CI Gate** below — matika's locked runtime deps, eyerate's runtime deps, and eyerate's `dev` group — into `.venv`, reading every layer from a DECLARATION (never a hardcoded dep list). It then sets `SECRET_KEY` and `PYTHONPATH=src:../matika/src` and runs `pytest tests/`. CI invokes this same script (`.github/workflows/test.yml`), so the config CI runs is exactly the config a developer runs locally.
+
+**Environment matters.** The `tests/integration/` tier `exec_module`s matika's `conftest.py` resolved via a **sibling-clone relative path** (`../../../matika/tests/conftest.py` from `tests/integration/`). It only resolves when eyerate's checkout/worktree sits beside the matika clone (`~/dev/projects/eyerate` next to `~/dev/projects/matika`). The script resolves matika at `../matika` relative to the eyerate checkout root and exits with a clear error if that sibling clone is missing.
+
+Note: `uv run pytest` is **not** the canonical invocation for eyerate. eyerate requires `../matika/src` on `PYTHONPATH` because matika is a sibling directory, not an installed package; `uv run` does not set `PYTHONPATH`, so the integration tier would fail at collection. The script sets `PYTHONPATH` for you — prefer it over invoking `pytest` directly.
 
 Running the integration tier from a worktree that is NOT a matika sibling (e.g. under `/tmp`) makes that exec path 404 → **all integration tests ERROR at collection** (not a real failure — a setup artifact). If you see "N errors" in the integration tier, check your CWD/sibling layout before assuming a regression.
 
 ## CI Gate
 
-eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, then installs in three layers:
+eyerate has two PR-triggered workflows: `check-compiled-assets.yml` (TS staleness check) and `test.yml` (Python pytest gate). `test.yml` triggers on push and PR to `main`; it checks out eyerate and matika as siblings, installs `uv`, then runs `scripts/run-tests.sh -v` from the eyerate checkout. The workflow contains no install logic of its own — the script is the single declared source so the gate runs exactly what a developer runs locally.
 
-1. matika's exact locked runtime deps (`uv export --frozen --no-dev` from matika's lock).
-2. eyerate's runtime deps (`uv pip install -r eyerate/pyproject.toml`).
-3. eyerate's test tooling from the canonical `[dependency-groups] dev` (`cd eyerate && uv pip install --python ../.venv/bin/python --group dev`), which includes `httpx2`, `pytest`, and `pytest-asyncio`. The subshell `cd` is required because `--group` resolves `pyproject.toml` from the current directory and the workspace-root venv must be referenced as `../.venv`.
+`scripts/run-tests.sh` installs the combined environment in three layers, each read from a DECLARATION (never a hardcoded package list):
 
-It then sets `PYTHONPATH=src:../matika/src` and runs `../.venv/bin/python -m pytest tests/ -v`. The `dev` group in `pyproject.toml` is the single source of truth for eyerate's test tooling — no hardcoded package list in the workflow. A Python regression is caught by CI before merge.
+1. matika's exact locked runtime deps (`uv export --directory ../matika --frozen --no-dev` from matika's lock, stripping the `-e .` self-install line since matika source is provided via `PYTHONPATH`, not installed).
+2. eyerate's runtime deps (`uv pip install -r pyproject.toml`).
+3. eyerate's test tooling from the canonical `[dependency-groups] dev` (`uv pip install --group dev`), which includes `httpx2`, `pytest`, and `pytest-asyncio`.
+
+It then sets `SECRET_KEY` and `PYTHONPATH=src:../matika/src` and runs `pytest tests/`. The `dev` group in `pyproject.toml` is the single source of truth for eyerate's test tooling — no hardcoded package list anywhere. A Python regression is caught by CI before merge.

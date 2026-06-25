@@ -41,21 +41,11 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Create venv and install dependencies
-        run: |
-          uv venv .venv --python python3.14
-          # Install matika's exact locked dependencies for reproducibility.
-          # matika source is provided via PYTHONPATH (not installed as a package),
-          # so we strip the -e . self-install line.
-          uv export --directory matika --frozen --no-hashes --no-dev \
-            | grep -v "^-e " > /tmp/matika-locked.txt
-          uv pip install --python .venv/bin/python -r /tmp/matika-locked.txt
-          uv pip install --python .venv/bin/python -r eyerate/pyproject.toml
-          (cd eyerate && uv pip install --python ../.venv/bin/python --group dev)
-
-      - name: Run pytest
+      # Build the combined env and run the full suite through the ONE canonical
+      # runner that local development also uses (scripts/run-tests.sh). The script
+      # is the single declared source for the three-layer install (matika locked
+      # deps + eyerate runtime deps + eyerate dev group) and sets PYTHONPATH and
+      # SECRET_KEY itself, so the config CI runs is the config developers run.
+      - name: Run test suite
         working-directory: eyerate
-        env:
-          PYTHONPATH: src:../matika/src
-          SECRET_KEY: test-only-secret-key-not-for-production
-        run: ../.venv/bin/python -m pytest tests/ -v
+        run: ./scripts/run-tests.sh -v
