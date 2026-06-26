@@ -416,21 +416,58 @@ def test_lookup_error_screen_drives_keyless_finnhub_error_flow():
         assert expected in pairs, f"lookup_error screen missing step {expected}"
 
 
-def test_lookup_error_screen_resets_provider_to_default_at_end():
+def test_lookup_error_screen_resets_provider_then_returns_to_screen_route():
     """b3 order-independence contract: the keyless-finnhub error screen MUTATES
     server-side provider config, so it self-resets the provider to the default
-    (yahoo) as the FINAL action of its own step list. Known-initial-state in,
-    known-initial-state out — the screen poisons nothing regardless of run order,
-    replacing the old 'must run last' ordering crutch."""
+    (yahoo) as its last provider-affecting action. Known-initial-state in,
+    known-initial-state out — the screen poisons nothing regardless of run order.
+
+    Crucially, the reset is performed on /eyerate/admin and is IMMEDIATELY
+    followed by a navigate BACK to the screen's declared route
+    (/eyerate/securities). drive_screen asserts the screen's markers AFTER the
+    final step, so the screen MUST end on a page that actually bears its
+    securities markers — ending on /eyerate/admin (as it did before this fix)
+    made the post-steps marker assertion fail on the wrong page."""
     pairs = _step_pairs(_get_screen(LOOKUP_ERROR_SCREEN_ID))
-    assert pairs[-3:] == [
+    assert pairs[-4:] == [
         ("navigate", "/eyerate/admin"),
         ("click", 'input[name="endpoint"][value="yahoo"]'),
         ("click", '#eyerate-admin-form button[type="submit"]'),
+        ("navigate", "/eyerate/securities"),
     ], (
-        "lookup_error screen must END by resetting the provider to yahoo via the "
-        f"admin form; last steps were: {pairs[-3:]}"
+        "lookup_error screen must reset the provider to yahoo via the admin form "
+        "and then navigate back to its declared route /eyerate/securities so the "
+        f"post-steps marker assertion lands correctly; last steps were: {pairs[-4:]}"
     )
+
+
+def test_every_screen_ends_on_its_declared_route():
+    """REGRESSION (manomatika/eyerate — lookup_error marker-route mismatch):
+    drive_screen runs all of a screen's steps and THEN asserts its markers, so a
+    screen whose steps navigate AWAY from its declared route leaves the marker
+    assertion checking the wrong page. eyerate:securities_lookup_error used to end
+    its step list on /eyerate/admin (the provider reset) while declaring securities
+    markers, so tier-b failed with 'NONE of the declared markers found' once the
+    earlier assert_value race stopped masking it.
+
+    Pin the invariant: the target of every screen's LAST navigate step must equal
+    its declared route, so markers are always asserted on the page they belong to.
+    This FAILS on the pre-fix manifest (last navigate was /eyerate/admin) and
+    PASSES once the screen returns to /eyerate/securities at the end."""
+    data = load_screens_json()
+    for entry in data["screens"]:
+        if entry.get("type") != "screen":
+            continue
+        sid = entry.get("screen_id", "<no id>")
+        route = entry.get("route")
+        nav_targets = [
+            s.get("target") for s in entry.get("steps", []) if s.get("verb") == "navigate"
+        ]
+        assert nav_targets, f"Screen '{sid}' has no navigate step"
+        assert nav_targets[-1] == route, (
+            f"Screen '{sid}' ends on {nav_targets[-1]!r} but declares route "
+            f"{route!r}; its markers would be asserted on the wrong page"
+        )
 
 
 # --- DOM hooks for the NEW selectors introduced by b2/b3 ---
