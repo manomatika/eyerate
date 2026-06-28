@@ -130,12 +130,12 @@ npm run build   # compile src/eyerate/ts/**/*.ts → src/eyerate/static/js/
 ### Manifest Files
 
 - `applug.json` — Plugin `id` (`eyerate`), `name` (`"EyeRate"`), `description`, `version`, `matika_version`, entry point, permissions, and the `settings_ui` schema. There is **no** `display_name` key (the UI label falls back to `name`). The `settings_ui` schema drives the data-provider selector on Matika's settings page (section `data_providers`): a `financial_security_data_endpoint` select (`yahoo`/`finnhub`/`alphavantage`, default `yahoo`) and a `financial_security_data_api_key` textbox shown only when the endpoint is `finnhub` or `alphavantage`. Permissions: Admin=FULL, User=FULL for `/eyerate/securities`.
-- `eyerate_menus.json` — Consolidated menu manifest. Contains two optional top-level sections: `application` (application-type menu) and `roles` (array of role menus, each with `role`, `id`, `label_key`, and `items`). Admin role items are flat `Link` objects; User role items are wrapped in a `Menu` object. Full detail: see `docs/menu-loading.md`.
+- `eyerate_menus.json` — Consolidated menu manifest. Carries a `schema_version` (`"1.0"`) and a `menus` object holding two optional sections: `application` (application-type menu) and `roles` (array of role menus, each with `role`, `id`, `label_key`, and `items`). Admin role items are flat `Link` objects; User role items are wrapped in a `Menu` object. Full detail: see `docs/menu-loading.md`.
 - `eyerate_screens.json` — Screen inventory for the L2 structural harness (tier-a route check + tier-b Playwright step-driving). Uses the matika screen schema v1.0 (`schema_version: "1.0"`, `screens` array). Declares three real `screen` entries — `eyerate:securities_list` and `eyerate:securities_lookup_error` (both rendering `/eyerate/securities` with markers `#action-form`, `#lookup-modal` and full interactive `steps`: the lookup flow searches `VOO` and asserts the resolved symbol; the lookup-error flow forces keyless `finnhub`, asserts a visible `.lookup-error`, then resets to `yahoo`) and `eyerate:admin` (`/eyerate/admin`, markers `#eyerate-admin-form`, `.admin-provider-section`) — plus `not_a_screen` entries for the POST-only / JSON-API handlers. Consumed by `ScreenLoaderService` in matika.
 
 ### Plugin Wiring (`plugin.py`)
 
-`EyeRatePlugin` extends `BaseAppLug`. The `on_load()` method runs at Matika startup: runs SQLAlchemy `create_all` to migrate the `securities` table (plugin-managed; not in Matika's Alembic migrations); registers the FastAPI router at the `/admin` prefix; mounts `/eyerate/static` pointing at `src/eyerate/static/` (note: `/eyerate/static` not `/static/eyerate` to avoid a Starlette route-ordering conflict); and appends the plugin's `templates/` directory to Jinja2's search path.
+`EyeRatePlugin` extends `BaseAppLug`. The `on_load()` method runs at Matika startup: runs SQLAlchemy `create_all` to migrate the `securities` table (plugin-managed; not in Matika's Alembic migrations); registers the FastAPI router at the `/eyerate` prefix; mounts `/eyerate/static` pointing at `src/eyerate/static/` (note: `/eyerate/static` not `/static/eyerate` to avoid a Starlette route-ordering conflict); and appends the plugin's `templates/` directory to Jinja2's search path.
 
 ### Security Requirements
 
@@ -152,7 +152,7 @@ The active provider is resolved per-request from two Matika system settings: `fi
 
 ### Routes (`routes.py`)
 
-FastAPI router registered at `/eyerate/securities`. All routes use `get_db`, `check_page_permission`, and `validate_csrf` (form routes) from Matika's security layer.
+FastAPI router registered under the `/eyerate` prefix (securities endpoints under `/eyerate/securities`, admin endpoints under `/eyerate/admin`). All routes use `get_db`, `check_page_permission`, and `validate_csrf` (form routes) from Matika's security layer.
 
 ### TypeScript
 
