@@ -20,11 +20,13 @@ async def list_securities(request: Request, user: User = Depends(check_page_perm
     # 't' and 'templates' are provided by framework context_processor for rendering.
     # The maintenance base template renders `title` verbatim as the toolbar heading,
     # so it must be an already-resolved display string. Resolve the i18n key here
-    # (eyerate's locale catalogs supply "item_securities") rather than leaking the
-    # raw key into the page.
+    # (eyerate's locale catalogs supply "item_securities"). Under the STRICT
+    # i18n-completeness gate the key is guaranteed to resolve in every shipped
+    # locale, so we subscript directly — a missing key must raise loudly (rule 18),
+    # never silently self-default to the raw key name and leak it into the page.
     t = request.app.state.i18n.get_text(request.headers.get("accept-language"))
     return request.app.state.templates.TemplateResponse(request, "admin_securities.html", {
-        "title": t.get("item_securities", "item_securities"), "user": user, "securities": db.query(FinancialSecurity).all(),
+        "title": t["item_securities"], "user": user, "securities": db.query(FinancialSecurity).all(),
         "option_sources": {
             "financial_security_types": [e.value for e in FinancialSecurityType],
             "asset_classes": [e.value for e in AssetClass],

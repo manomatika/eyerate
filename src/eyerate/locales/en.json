@@ -31,5 +31,8 @@
     "label_52_week_range": "52 Week Range",
     "label_avg_volume": "Avg. Volume",
     "label_30_day_yield": "30 Day Yield",
-    "label_7_day_yield": "7 Day Yield"
+    "label_7_day_yield": "7 Day Yield",
+    "heading_financial_security_lookup": "Financial Security Lookup",
+    "heading_financial_security_endpoints": "Financial Security Endpoints",
+    "label_active_endpoint": "Active Endpoint"
 }
