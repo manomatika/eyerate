@@ -1,3 +1,5 @@
+import json
+import os
 import pytest
 from eyerate.models import FinancialSecurity as Security, FinancialSecurityType as SecurityType, AssetClass
 from matika.database import init_db
@@ -73,6 +75,33 @@ def test_securities_crud(client, test_admin, db):
     assert resp.status_code == 303
     deleted_sec = db.query(Security).filter(Security.id == sec.id).first()
     assert deleted_sec is None
+
+def test_securities_toolbar_title_is_translated_not_raw_key(client, test_admin, db):
+    """Regression (manomatika/eyerate#73): the Securities toolbar heading must
+    render the SEEDED translated value for `item_securities`, never the raw i18n
+    key. The route previously passed the raw key as `title`, which the maintenance
+    base template renders verbatim into `<h2 id="activity-title">`."""
+    init_db(db)
+    client.post("/login", data={"email": test_admin.email, "password": "adminpassword"}, follow_redirects=False)
+
+    # The expected display value is the seeded translation, read from eyerate's
+    # own locale catalog (the source the i18n service merges into `t`).
+    locale_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "src", "eyerate", "locales", "en.json",
+    )
+    with open(locale_path, encoding="utf-8") as f:
+        expected_title = json.load(f)["item_securities"]
+    assert expected_title and expected_title != "item_securities"
+
+    resp = client.get("/eyerate/securities")
+    assert resp.status_code == 200
+    # Toolbar heading shows the translated value...
+    assert f'<h2 id="activity-title">{expected_title}</h2>' in resp.text
+    # ...and never the raw i18n key.
+    assert '<h2 id="activity-title">item_securities</h2>' not in resp.text
+    assert "item_securities" not in resp.text
+
 
 def test_user_can_access_securities(client, test_user, db):
     init_db(db)
