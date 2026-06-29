@@ -30,5 +30,9 @@
     "label_52_week_range": "Rango de 52 Semanas",
     "label_avg_volume": "Volumen Promedio",
     "label_30_day_yield": "Rendimiento de 30 D\u00edas",
-    "label_7_day_yield": "Rendimiento de 7 D\u00edas"
+    "label_7_day_yield": "Rendimiento de 7 D\u00edas",
+    "heading_financial_security_lookup": "Búsqueda de Valores Financieros",
+    "heading_financial_security_endpoints": "Endpoints de Valores Financieros",
+    "label_active_endpoint": "Endpoint Activo",
+    "menu_eyerate": "EyeRate"
 }

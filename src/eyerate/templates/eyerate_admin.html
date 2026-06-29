@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t.heading_eyerate_admin or "EyeRate Administration" }}{% endblock %}
+{% block title %}{{ t.heading_eyerate_admin }}{% endblock %}
 
 {% block content %}
-<h1>{{ t.heading_eyerate_admin or "EyeRate Administration" }}</h1>
+<h1>{{ t.heading_eyerate_admin }}</h1>
 
 <form method="post" action="/eyerate/admin" id="eyerate-admin-form">
   <input type="hidden" name="csrf_token" value="{{ request.session.get('csrf_token', '') }}">
