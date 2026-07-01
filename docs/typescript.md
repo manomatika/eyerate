@@ -9,7 +9,6 @@ TypeScript source lives under `src/eyerate/ts/` with mandatory subdirectories:
 |---|---|
 | `ts/admin/` | Admin-page-specific scripts (e.g. `admin-securities.ts`) |
 | `ts/dialogs/` | Reusable dialog/modal components (e.g. `lookup-dialog.ts`) |
-| `ts/shared/` | Types, utilities, and ambient declarations shared across features |
 
 ## Naming Rules
 
