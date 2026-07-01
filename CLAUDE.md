@@ -156,7 +156,7 @@ FastAPI router registered under the `/eyerate` prefix (securities endpoints unde
 
 ### TypeScript
 
-Source lives under `src/eyerate/ts/` (subdirs: `admin/`, `dialogs/`, `shared/`). Compiled JS is committed to git. Run `npm run build` after editing any `.ts` file and commit both source and compiled output together. Full detail: see `docs/typescript.md`.
+Source lives under `src/eyerate/ts/` (subdirs: `admin/`, `dialogs/`). Compiled JS is committed to git. Run `npm run build` after editing any `.ts` file and commit both source and compiled output together. Full detail: see `docs/typescript.md`.
 
 ### Testing
 
