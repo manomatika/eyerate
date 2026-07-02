@@ -11,7 +11,30 @@ from matika.core.utils import load_metadata
 from matika.security.service import check_page_permission
 from matika.auth.dependencies import login_required, validate_csrf
 
+from .error.error_codes import (
+    EYERATE_API_001,
+    EYERATE_API_002,
+    EYERATE_API_003,
+    EYERATE_API_004,
+    EYERATE_API_005,
+)
+from .error.errors import resolve as resolve_error
 from .models import FinancialSecurity, FinancialSecurityType, AssetClass
+
+
+def _error_detail(request: Request, code: str, **context) -> dict:
+    """Build an HTTP error ``detail`` payload that carries the machine code.
+
+    Model A (manomatika-v0.0.1-plan.md §2): ``code`` is the machine carrier AND
+    the i18n catalog key, so every error response surfaces it alongside the
+    locale-resolved message (resolved from the caller's ``Accept-Language``).
+    Extra *context* (e.g. the underlying ``ProviderError.code``) is merged in for
+    traceability without overloading the resolved ``code``/``message`` pair.
+    """
+    lang = request.headers.get("accept-language", "en")
+    detail = {"code": code, "message": resolve_error(code, lang)}
+    detail.update(context)
+    return detail
 
 router = APIRouter()
 
@@ -35,8 +58,8 @@ async def list_securities(request: Request, user: User = Depends(check_page_perm
     })
 
 @router.post("/securities/create", tags=[PageType.MAINTENANCE])
-async def create_security(symbol: str = Form(...), name: str = Form(...), financial_security_type: FinancialSecurityType = Form(...), asset_class: Optional[AssetClass] = Form(None), previous_close: Optional[str] = Form(None), open_price: Optional[str] = Form(None), current_price: Optional[str] = Form(None), nav: Optional[str] = Form(None), range_52_week: Optional[str] = Form(None), avg_volume: Optional[str] = Form(None), yield_30_day: Optional[str] = Form(None), yield_7_day: Optional[str] = Form(None), _auth: User = Depends(check_page_permission), _csrf=Depends(validate_csrf), db: Session = Depends(get_db)):
-    if db.query(FinancialSecurity).filter(FinancialSecurity.symbol == symbol.upper()).first(): raise HTTPException(status_code=400, detail="already exists")
+async def create_security(request: Request, symbol: str = Form(...), name: str = Form(...), financial_security_type: FinancialSecurityType = Form(...), asset_class: Optional[AssetClass] = Form(None), previous_close: Optional[str] = Form(None), open_price: Optional[str] = Form(None), current_price: Optional[str] = Form(None), nav: Optional[str] = Form(None), range_52_week: Optional[str] = Form(None), avg_volume: Optional[str] = Form(None), yield_30_day: Optional[str] = Form(None), yield_7_day: Optional[str] = Form(None), _auth: User = Depends(check_page_permission), _csrf=Depends(validate_csrf), db: Session = Depends(get_db)):
+    if db.query(FinancialSecurity).filter(FinancialSecurity.symbol == symbol.upper()).first(): raise HTTPException(status_code=400, detail=_error_detail(request, EYERATE_API_004))
     db.add(FinancialSecurity(symbol=symbol.upper(), name=name, financial_security_type=financial_security_type, asset_class=asset_class, previous_close=previous_close, open_price=open_price, current_price=current_price, nav=nav, range_52_week=range_52_week, avg_volume=avg_volume, yield_30_day=yield_30_day, yield_7_day=yield_7_day))
     db.commit(); return RedirectResponse(url="/eyerate/securities", status_code=303)
 
@@ -57,24 +80,24 @@ async def delete_security(sec_id: int, _auth: User = Depends(check_page_permissi
     return RedirectResponse(url="/eyerate/securities", status_code=303)
 
 @router.get("/securities/search")
-async def search_securities(q: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
+async def search_securities(request: Request, q: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
     from .plugin import get_financial_security_endpoint
     from .endpoints import ProviderError
     try:
         return await get_financial_security_endpoint(db).search(q)
     except ProviderError as e:
-        raise HTTPException(status_code=502, detail=f"lookup failed: {e}")
+        raise HTTPException(status_code=502, detail=_error_detail(request, EYERATE_API_001, provider_code=e.code))
 
 @router.get("/securities/lookup")
-async def lookup_security(symbol: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
+async def lookup_security(request: Request, symbol: str, _auth: User = Depends(login_required), db: Session = Depends(get_db)):
     from .plugin import get_financial_security_endpoint
     from .endpoints import ProviderError
     try:
         data = await get_financial_security_endpoint(db).lookup(symbol)
     except ProviderError as e:
-        raise HTTPException(status_code=502, detail=f"lookup failed: {e}")
+        raise HTTPException(status_code=502, detail=_error_detail(request, EYERATE_API_002, provider_code=e.code))
     if data is None:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail=_error_detail(request, EYERATE_API_003))
     return data
 
 class BulkCreateRequest(BaseModel): symbols: List[str]
@@ -136,12 +159,14 @@ async def eyerate_admin_save(
 
 
 @router.post("/securities/test_endpoint", tags=[PageType.SETTINGS])
-async def test_security_endpoint(endpoint: str = Form(...), api_key: Optional[str] = Form(None), _auth: User = Depends(login_required)):
-    from .endpoints import YahooScraperEndpoint, FinnhubEndpoint, AlphaVantageEndpoint
+async def test_security_endpoint(request: Request, endpoint: str = Form(...), api_key: Optional[str] = Form(None), _auth: User = Depends(login_required)):
+    from .endpoints import YahooScraperEndpoint, FinnhubEndpoint, AlphaVantageEndpoint, ProviderError
     try:
         if endpoint == "finnhub": ep = FinnhubEndpoint(api_key=api_key or "")
         elif endpoint == "alphavantage": ep = AlphaVantageEndpoint(api_key=api_key or "")
         else: ep = YahooScraperEndpoint()
         d = await ep.lookup("VOO")
         return {"success": True} if d and d.get("symbol") == "VOO" else {"success": False, "error": "No data"}
+    except ProviderError as e:
+        return {"success": False, **_error_detail(request, EYERATE_API_005, provider_code=e.code)}
     except Exception as e: return {"success": False, "error": str(e)}

@@ -5,6 +5,7 @@
     "description": "Financial security maintenance and yield tracking plugin.",
     "entry_point": "eyerate.plugin.EyeRatePlugin",
     "matika_version": "0.0.4",
+    "supported_locales": ["en", "es"],
     "permissions": [
         {
             "page_path": "/eyerate/securities",

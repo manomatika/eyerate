@@ -34,5 +34,16 @@
     "label_7_day_yield": "7 Day Yield",
     "heading_financial_security_lookup": "Financial Security Lookup",
     "heading_financial_security_endpoints": "Financial Security Endpoints",
-    "label_active_endpoint": "Active Endpoint"
+    "label_active_endpoint": "Active Endpoint",
+    "errors": {
+        "EYERATE-PROV-001": "Provider requires an API key that is not configured",
+        "EYERATE-PROV-002": "Provider request was rate limited",
+        "EYERATE-PROV-003": "Provider returned an HTTP error",
+        "EYERATE-PROV-004": "Provider call failed unexpectedly",
+        "EYERATE-API-001": "Security search failed because the provider call did not complete",
+        "EYERATE-API-002": "Security lookup failed because the provider call did not complete",
+        "EYERATE-API-003": "Security was not found",
+        "EYERATE-API-004": "Security already exists",
+        "EYERATE-API-005": "Provider connectivity test failed"
+    }
 }
