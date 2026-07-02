@@ -1,0 +1,53 @@
+# eyerate's error-code registry (Model A — manomatika-v0.0.1-plan.md §2).
+#
+# eyerate declares its own codes here; ahimsa (the mechanism) validates this file's
+# shape at the gate and, in a later run, aggregates it with every other origin's
+# registry. facility/number are DERIVED from each `code` string — they are not
+# separate fields. NNN is zero-padded and CONTIGUOUS 1..N per facility (ahimsa's
+# lints reject gaps/dups).
+#
+# Facilities:
+#   PROV — data-provider call failures (src/eyerate/endpoints.py ProviderError).
+#          Every ProviderError raise site is categorized into exactly one of the
+#          four PROV codes below by failure kind, not one code per raise site.
+#   API  — route-layer failures surfaced on HTTP responses (src/eyerate/routes.py).
+origin: eyerate
+component: EYERATE
+supported_locales: [en, es]
+codes:
+  - code: EYERATE-PROV-001
+    severity: error
+    log_route: "n/a"
+    message: Provider requires an API key that is not configured
+  - code: EYERATE-PROV-002
+    severity: warning
+    log_route: "n/a"
+    message: Provider request was rate limited
+  - code: EYERATE-PROV-003
+    severity: error
+    log_route: "n/a"
+    message: Provider returned an HTTP error
+  - code: EYERATE-PROV-004
+    severity: error
+    log_route: aggregate
+    message: Provider call failed unexpectedly
+  - code: EYERATE-API-001
+    severity: error
+    log_route: "n/a"
+    message: Security search failed because the provider call did not complete
+  - code: EYERATE-API-002
+    severity: error
+    log_route: "n/a"
+    message: Security lookup failed because the provider call did not complete
+  - code: EYERATE-API-003
+    severity: warning
+    log_route: "n/a"
+    message: Security was not found
+  - code: EYERATE-API-004
+    severity: warning
+    log_route: "n/a"
+    message: Security already exists
+  - code: EYERATE-API-005
+    severity: warning
+    log_route: "n/a"
+    message: Provider connectivity test failed

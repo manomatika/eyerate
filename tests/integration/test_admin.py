@@ -8,6 +8,7 @@ Includes Task 4 regression tests: provider failures must surface as HTTP 502
 import pytest
 from unittest.mock import patch, AsyncMock
 from matika.database import init_db
+from eyerate.error.error_codes import EYERATE_API_001, EYERATE_API_002, EYERATE_PROV_003, EYERATE_PROV_004
 
 
 def _login(client, email, password):
@@ -119,14 +120,15 @@ def test_securities_search_provider_error_returns_502(client, test_admin, db):
     from eyerate.endpoints import ProviderError
     with patch("eyerate.plugin.get_financial_security_endpoint") as mock_ep_factory:
         mock_ep = AsyncMock()
-        mock_ep.search.side_effect = ProviderError("Yahoo search HTTP 500")
+        mock_ep.search.side_effect = ProviderError(EYERATE_PROV_003, "Yahoo search HTTP 500")
         mock_ep_factory.return_value = mock_ep
 
         resp = client.get("/eyerate/securities/search?q=VOO")
 
     assert resp.status_code == 502
     body = resp.json()
-    assert "lookup failed" in body["detail"]
+    assert body["detail"]["code"] == EYERATE_API_001
+    assert body["detail"]["provider_code"] == EYERATE_PROV_003
     # Must NOT be a silent empty list — caller can distinguish failure from no results
     assert not isinstance(body, list)
 
@@ -155,7 +157,7 @@ def test_securities_search_error_and_empty_are_distinguishable(client, test_admi
     from eyerate.endpoints import ProviderError
     with patch("eyerate.plugin.get_financial_security_endpoint") as mock_ep_factory:
         mock_ep = AsyncMock()
-        mock_ep.search.side_effect = ProviderError("dep import failed")
+        mock_ep.search.side_effect = ProviderError(EYERATE_PROV_004, "dep import failed")
         mock_ep_factory.return_value = mock_ep
         error_resp = client.get("/eyerate/securities/search?q=VOO")
 
@@ -179,14 +181,15 @@ def test_securities_lookup_provider_error_returns_502_not_404(client, test_admin
     from eyerate.endpoints import ProviderError
     with patch("eyerate.plugin.get_financial_security_endpoint") as mock_ep_factory:
         mock_ep = AsyncMock()
-        mock_ep.lookup.side_effect = ProviderError("yfinance not importable in frozen app")
+        mock_ep.lookup.side_effect = ProviderError(EYERATE_PROV_004, "yfinance not importable in frozen app")
         mock_ep_factory.return_value = mock_ep
 
         resp = client.get("/eyerate/securities/lookup?symbol=VOO")
 
     assert resp.status_code == 502
     body = resp.json()
-    assert "lookup failed" in body["detail"]
+    assert body["detail"]["code"] == EYERATE_API_002
+    assert body["detail"]["provider_code"] == EYERATE_PROV_004
     # 502 (provider failed) is distinct from 404 (symbol not found)
     assert resp.status_code != 404
 

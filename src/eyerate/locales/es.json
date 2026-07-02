@@ -34,5 +34,16 @@
     "heading_financial_security_lookup": "Búsqueda de Valores Financieros",
     "heading_financial_security_endpoints": "Endpoints de Valores Financieros",
     "label_active_endpoint": "Endpoint Activo",
-    "menu_eyerate": "EyeRate"
+    "menu_eyerate": "EyeRate",
+    "errors": {
+        "EYERATE-PROV-001": "El proveedor requiere una clave de API que no está configurada",
+        "EYERATE-PROV-002": "La solicitud al proveedor fue limitada por frecuencia",
+        "EYERATE-PROV-003": "El proveedor devolvió un error HTTP",
+        "EYERATE-PROV-004": "La llamada al proveedor falló inesperadamente",
+        "EYERATE-API-001": "La búsqueda de valores falló porque la llamada al proveedor no se completó",
+        "EYERATE-API-002": "La consulta del valor falló porque la llamada al proveedor no se completó",
+        "EYERATE-API-003": "No se encontró el valor financiero",
+        "EYERATE-API-004": "El valor financiero ya existe",
+        "EYERATE-API-005": "La prueba de conectividad del proveedor falló"
+    }
 }

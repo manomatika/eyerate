@@ -5,18 +5,31 @@ import random
 import logging
 import yfinance as yf
 from curl_cffi.requests import AsyncSession
+from .error.error_codes import (
+    EYERATE_PROV_001,
+    EYERATE_PROV_002,
+    EYERATE_PROV_003,
+    EYERATE_PROV_004,
+)
+from .error.manomatika_error import ManoMatikaError
 from .models import FinancialSecurityType, AssetClass
 
 logger = logging.getLogger(__name__)
 
 
-class ProviderError(Exception):
+class ProviderError(ManoMatikaError):
     """Raised when a data provider call fails (as opposed to returning genuine zero results).
 
     Callers must treat ProviderError as a hard failure — not a silent empty result.
     A ProviderError means the call itself could not complete (HTTP error, dep missing,
     network failure, rate limit, missing API key). It is distinct from a successful call
     that happened to return no matches.
+
+    Every raise site pins one of the ``EYERATE-PROV-NNN`` codes declared in
+    ``eyerate.error.error_codes`` by failure kind (missing API key, rate limited,
+    HTTP error, unexpected/generic failure) — see ``src/eyerate/error/error-codes.yaml``.
+    ``ManoMatikaError.__init__`` fails loud if a raise site is ever given a code that
+    is not a well-formed ``<COMPONENT>-<FAC>-<NNN>`` string.
     """
 
 
@@ -102,9 +115,9 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
                 await asyncio.sleep(random.uniform(0.1, 0.3))
                 response = await s.get(self.SEARCH_URL, params=params, headers=self.HEADERS)
                 if response.status_code == 429:
-                    raise ProviderError("Yahoo rate limited (429)")
+                    raise ProviderError(EYERATE_PROV_002, "Yahoo rate limited (429)")
                 if response.status_code != 200:
-                    raise ProviderError(f"Yahoo search HTTP {response.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Yahoo search HTTP {response.status_code}")
 
                 data = response.json()
                 results = []
@@ -129,7 +142,7 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Yahoo search error: {e}")
-            raise ProviderError(f"Yahoo search error: {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Yahoo search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
         try:
@@ -159,7 +172,7 @@ class YahooScraperEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Yahoo lookup error for '{symbol}': {e}")
-            raise ProviderError(f"Yahoo lookup error for '{symbol}': {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Yahoo lookup error for '{symbol}': {e}")
 
 class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
     """Finnhub API - Reliable, requires API key."""
@@ -174,16 +187,16 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
 
     async def search(self, query: str) -> List[Dict[str, str]]:
         if not self.api_key:
-            raise ProviderError("Finnhub requires an API key")
+            raise ProviderError(EYERATE_PROV_001, "Finnhub requires an API key")
         url = f"{self.BASE_URL}/search"
         params = {"q": query, "token": self.api_key}
         try:
             async with AsyncSession() as s:
                 response = await s.get(url, params=params)
                 if response.status_code == 429:
-                    raise ProviderError("Finnhub rate limited (429)")
+                    raise ProviderError(EYERATE_PROV_002, "Finnhub rate limited (429)")
                 if response.status_code != 200:
-                    raise ProviderError(f"Finnhub search HTTP {response.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Finnhub search HTTP {response.status_code}")
 
                 data = response.json()
                 results = []
@@ -199,11 +212,11 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Finnhub search error: {e}")
-            raise ProviderError(f"Finnhub search error: {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Finnhub search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
         if not self.api_key:
-            raise ProviderError("Finnhub requires an API key")
+            raise ProviderError(EYERATE_PROV_001, "Finnhub requires an API key")
         try:
             async with AsyncSession() as s:
                 q_url = f"{self.BASE_URL}/quote"
@@ -212,11 +225,11 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
                 p_resp = await s.get(p_url, params={"symbol": symbol, "token": self.api_key})
 
                 if q_resp.status_code == 429 or p_resp.status_code == 429:
-                    raise ProviderError("Finnhub rate limited (429)")
+                    raise ProviderError(EYERATE_PROV_002, "Finnhub rate limited (429)")
                 if q_resp.status_code != 200:
-                    raise ProviderError(f"Finnhub quote HTTP {q_resp.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Finnhub quote HTTP {q_resp.status_code}")
                 if p_resp.status_code != 200:
-                    raise ProviderError(f"Finnhub profile HTTP {p_resp.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Finnhub profile HTTP {p_resp.status_code}")
 
                 q_data = q_resp.json()
                 p_data = p_resp.json()
@@ -239,7 +252,7 @@ class FinnhubEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Finnhub lookup error for '{symbol}': {e}")
-            raise ProviderError(f"Finnhub lookup error for '{symbol}': {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Finnhub lookup error for '{symbol}': {e}")
 
 class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
     """Alpha Vantage API - Reliable backup, requires API key."""
@@ -254,7 +267,7 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
 
     async def search(self, query: str) -> List[Dict[str, str]]:
         if not self.api_key:
-            raise ProviderError("Alpha Vantage requires an API key")
+            raise ProviderError(EYERATE_PROV_001, "Alpha Vantage requires an API key")
         params = {
             "function": "SYMBOL_SEARCH",
             "keywords": query,
@@ -264,10 +277,10 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
             async with AsyncSession() as s:
                 response = await s.get(self.BASE_URL, params=params)
                 if response.status_code != 200:
-                    raise ProviderError(f"Alpha Vantage search HTTP {response.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Alpha Vantage search HTTP {response.status_code}")
                 data = response.json()
                 if "Note" in data:
-                    raise ProviderError("Alpha Vantage rate limited")
+                    raise ProviderError(EYERATE_PROV_002, "Alpha Vantage rate limited")
 
                 results = []
                 for item in data.get("bestMatches", []):
@@ -282,11 +295,11 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Alpha Vantage search error: {e}")
-            raise ProviderError(f"Alpha Vantage search error: {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Alpha Vantage search error: {e}")
 
     async def lookup(self, symbol: str) -> Optional[Dict[str, Any]]:
         if not self.api_key:
-            raise ProviderError("Alpha Vantage requires an API key")
+            raise ProviderError(EYERATE_PROV_001, "Alpha Vantage requires an API key")
         params = {
             "function": "GLOBAL_QUOTE",
             "symbol": symbol,
@@ -296,7 +309,7 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
             async with AsyncSession() as s:
                 response = await s.get(self.BASE_URL, params=params)
                 if response.status_code != 200:
-                    raise ProviderError(f"Alpha Vantage lookup HTTP {response.status_code}")
+                    raise ProviderError(EYERATE_PROV_003, f"Alpha Vantage lookup HTTP {response.status_code}")
                 data = response.json().get("Global Quote", {})
                 if not data:
                     return None
@@ -319,4 +332,4 @@ class AlphaVantageEndpoint(BaseFinancialSecurityEndpoint):
             raise
         except Exception as e:
             logger.error(f"Alpha Vantage lookup error for '{symbol}': {e}")
-            raise ProviderError(f"Alpha Vantage lookup error for '{symbol}': {e}")
+            raise ProviderError(EYERATE_PROV_004, f"Alpha Vantage lookup error for '{symbol}': {e}")

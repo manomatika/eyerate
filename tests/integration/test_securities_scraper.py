@@ -1,6 +1,12 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from eyerate.endpoints import YahooScraperEndpoint, FinnhubEndpoint, AlphaVantageEndpoint, ProviderError
+from eyerate.error.error_codes import (
+    EYERATE_PROV_001,
+    EYERATE_PROV_002,
+    EYERATE_PROV_003,
+    EYERATE_PROV_004,
+)
 from eyerate.models import FinancialSecurityType as SecurityType, AssetClass
 
 @pytest.mark.asyncio
@@ -63,8 +69,9 @@ async def test_yahoo_search_raises_provider_error_on_http_500(mock_session):
     mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
 
     endpoint = YahooScraperEndpoint()
-    with pytest.raises(ProviderError, match="HTTP 500"):
+    with pytest.raises(ProviderError, match="HTTP 500") as excinfo:
         await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
 
 
 @pytest.mark.asyncio
@@ -76,8 +83,9 @@ async def test_yahoo_search_raises_provider_error_on_rate_limit(mock_session):
     mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
 
     endpoint = YahooScraperEndpoint()
-    with pytest.raises(ProviderError, match="rate limited"):
+    with pytest.raises(ProviderError, match="rate limited") as excinfo:
         await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_002
 
 
 @pytest.mark.asyncio
@@ -102,37 +110,217 @@ async def test_yahoo_lookup_raises_provider_error_on_exception(mock_ticker):
     mock_ticker.side_effect = ImportError("No module named 'yfinance'")
 
     endpoint = YahooScraperEndpoint()
-    with pytest.raises(ProviderError, match="Yahoo lookup error"):
+    with pytest.raises(ProviderError, match="Yahoo lookup error") as excinfo:
         await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
 
 
 @pytest.mark.asyncio
 async def test_finnhub_search_raises_provider_error_on_missing_key():
     """Missing API key must raise ProviderError, not silently return []."""
     endpoint = FinnhubEndpoint(api_key="")
-    with pytest.raises(ProviderError, match="API key"):
+    with pytest.raises(ProviderError, match="API key") as excinfo:
         await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_001
 
 
 @pytest.mark.asyncio
 async def test_alphavantage_search_raises_provider_error_on_missing_key():
     """Missing API key must raise ProviderError, not silently return []."""
     endpoint = AlphaVantageEndpoint(api_key="")
-    with pytest.raises(ProviderError, match="API key"):
+    with pytest.raises(ProviderError, match="API key") as excinfo:
         await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_001
 
 
 @pytest.mark.asyncio
 async def test_finnhub_lookup_raises_provider_error_on_missing_key():
     """Missing API key must raise ProviderError, not silently return None."""
     endpoint = FinnhubEndpoint(api_key="")
-    with pytest.raises(ProviderError, match="API key"):
+    with pytest.raises(ProviderError, match="API key") as excinfo:
         await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_001
 
 
 @pytest.mark.asyncio
 async def test_alphavantage_lookup_raises_provider_error_on_missing_key():
     """Missing API key must raise ProviderError, not silently return None."""
     endpoint = AlphaVantageEndpoint(api_key="")
-    with pytest.raises(ProviderError, match="API key"):
+    with pytest.raises(ProviderError, match="API key") as excinfo:
         await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_001
+
+
+# ---------------------------------------------------------------------------
+# R4 (manomatika/eyerate#77): ProviderError.code coverage for every remaining
+# raise site not already exercised above. Each asserts the exact
+# EYERATE-PROV-NNN code threaded through that specific failure path.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_yahoo_search_raises_provider_error_on_unexpected_exception(mock_session):
+    """A non-HTTP exception during search (e.g. connection reset) must carry PROV-004."""
+    mock_session.return_value.__aenter__.side_effect = RuntimeError("connection reset")
+
+    endpoint = YahooScraperEndpoint()
+    with pytest.raises(ProviderError, match="Yahoo search error") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_search_raises_provider_error_on_rate_limit(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 429
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="rate limited") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_002
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_search_raises_provider_error_on_http_error(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="HTTP 500") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_search_raises_provider_error_on_unexpected_exception(mock_session):
+    mock_session.return_value.__aenter__.side_effect = RuntimeError("connection reset")
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Finnhub search error") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_lookup_raises_provider_error_on_rate_limit(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 429
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="rate limited") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_002
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_lookup_raises_provider_error_on_quote_http_error(mock_session):
+    q_resp = MagicMock(); q_resp.status_code = 500
+    p_resp = MagicMock(); p_resp.status_code = 200
+    mock_session.return_value.__aenter__.return_value.get.side_effect = [q_resp, p_resp]
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Finnhub quote HTTP 500") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_lookup_raises_provider_error_on_profile_http_error(mock_session):
+    q_resp = MagicMock(); q_resp.status_code = 200
+    p_resp = MagicMock(); p_resp.status_code = 500
+    mock_session.return_value.__aenter__.return_value.get.side_effect = [q_resp, p_resp]
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Finnhub profile HTTP 500") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_finnhub_lookup_raises_provider_error_on_unexpected_exception(mock_session):
+    mock_session.return_value.__aenter__.side_effect = RuntimeError("connection reset")
+
+    endpoint = FinnhubEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Finnhub lookup error") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_alphavantage_search_raises_provider_error_on_http_error(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = AlphaVantageEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="HTTP 500") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_alphavantage_search_raises_provider_error_on_rate_limit(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"Note": "Thank you for using Alpha Vantage! ..."}
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = AlphaVantageEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="rate limited") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_002
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_alphavantage_search_raises_provider_error_on_unexpected_exception(mock_session):
+    mock_session.return_value.__aenter__.side_effect = RuntimeError("connection reset")
+
+    endpoint = AlphaVantageEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Alpha Vantage search error") as excinfo:
+        await endpoint.search("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_alphavantage_lookup_raises_provider_error_on_http_error(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_session.return_value.__aenter__.return_value.get.return_value = mock_response
+
+    endpoint = AlphaVantageEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="HTTP 500") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_003
+
+
+@pytest.mark.asyncio
+@patch("eyerate.endpoints.AsyncSession")
+async def test_alphavantage_lookup_raises_provider_error_on_unexpected_exception(mock_session):
+    mock_session.return_value.__aenter__.side_effect = RuntimeError("connection reset")
+
+    endpoint = AlphaVantageEndpoint(api_key="key")
+    with pytest.raises(ProviderError, match="Alpha Vantage lookup error") as excinfo:
+        await endpoint.lookup("VOO")
+    assert excinfo.value.code == EYERATE_PROV_004
+
+
+def test_provider_error_requires_a_well_formed_code():
+    """Constructing ProviderError with a code that isn't <COMPONENT>-<FAC>-<NNN>
+    must fail loud (rule 18) — this is what makes ProviderError.code trustworthy
+    as a machine carrier rather than an arbitrary string."""
+    with pytest.raises(ValueError, match="well-formed"):
+        ProviderError("not-a-real-code", "boom")
